@@ -3,6 +3,14 @@ import { useState, useEffect } from 'react';
 const DASHBOARD_NAMESPACE = 'redhat-ods-applications';
 const DASHBOARD_DEPLOYMENT = 'rhods-dashboard';
 
+/**
+ * Converts a camelCase Module Federation scope to kebab-case so it can be
+ * matched against the charter registry's kebab-case plugin names.
+ * e.g. "communityPluginsAdmin" → "community-plugins-admin"
+ */
+export const scopeToKebab = (scope: string): string =>
+  scope.replace(/([A-Z])/g, '-$1').toLowerCase();
+
 interface ModuleFederationEntry {
   scope: string;
   module: string;
@@ -46,7 +54,7 @@ export function useInstalledPluginNames() {
                 );
               }
               const entries = parsed as ModuleFederationEntry[];
-              setInstalledNames(new Set(entries.map((e) => e.scope)));
+              setInstalledNames(new Set(entries.map((e) => scopeToKebab(e.scope))));
             } catch (parseErr) {
               setError(
                 parseErr instanceof Error

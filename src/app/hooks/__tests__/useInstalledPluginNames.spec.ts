@@ -1,6 +1,8 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { useInstalledPluginNames } from '../useInstalledPluginNames';
+import { useInstalledPluginNames, scopeToKebab } from '../useInstalledPluginNames';
 
+// Scopes are camelCase in MODULE_FEDERATION_CONFIG (e.g. communityPluginsAdmin),
+// matching the Module Federation container name in plugin.yaml.
 const mockDeployment = {
   spec: {
     template: {
@@ -14,7 +16,7 @@ const mockDeployment = {
                 name: 'MODULE_FEDERATION_CONFIG',
                 value: JSON.stringify([
                   {
-                    scope: 'community-plugins-admin',
+                    scope: 'communityPluginsAdmin',
                     module: './extensions',
                     remoteEntry: 'http://svc:8080/remoteEntry.js',
                   },
@@ -33,12 +35,25 @@ const mockDeployment = {
   },
 };
 
+describe('scopeToKebab', () => {
+  it('converts camelCase scope to kebab-case', () => {
+    expect(scopeToKebab('communityPluginsAdmin')).toBe('community-plugins-admin');
+    expect(scopeToKebab('myPlugin')).toBe('my-plugin');
+    expect(scopeToKebab('fooBarBaz')).toBe('foo-bar-baz');
+  });
+
+  it('leaves already-lowercase scopes unchanged', () => {
+    expect(scopeToKebab('brewet')).toBe('brewet');
+    expect(scopeToKebab('myplugin')).toBe('myplugin');
+  });
+});
+
 describe('useInstalledPluginNames', () => {
   beforeEach(() => {
     jest.resetAllMocks();
   });
 
-  it('should return installed plugin names from MODULE_FEDERATION_CONFIG', async () => {
+  it('should return installed plugin names from MODULE_FEDERATION_CONFIG, normalized to kebab-case', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(mockDeployment),
@@ -50,6 +65,8 @@ describe('useInstalledPluginNames', () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    // camelCase scope "communityPluginsAdmin" → kebab "community-plugins-admin"
+    // all-lowercase scope "brewet" stays "brewet"
     expect(result.current.installedNames).toEqual(
       new Set(['community-plugins-admin', 'brewet']),
     );
