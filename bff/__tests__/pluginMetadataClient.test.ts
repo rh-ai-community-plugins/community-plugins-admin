@@ -1,16 +1,14 @@
-import https from 'https';
-import { EventEmitter } from 'events';
 import {
   getPluginMetadata,
   getAllPluginMetadata,
   clearPluginCache,
 } from '../src/services/pluginMetadataClient';
+import * as httpClient from '../src/utils/httpClient';
 import { RegistryPlugin } from '../src/types/catalog';
 
-jest.mock('https');
-jest.mock('http');
+jest.mock('../src/utils/httpClient');
 
-const mockedHttps = jest.mocked(https);
+const mockedFetchUrl = jest.mocked(httpClient.fetchUrl);
 
 const SAMPLE_PLUGIN_YAML = `
 name: brewet
@@ -51,25 +49,6 @@ const REGISTRY_PLUGIN_2: RegistryPlugin = {
   last_updated: '2026-06-24',
 };
 
-function createMockResponse(statusCode: number, body: string) {
-  const res = new EventEmitter() as EventEmitter & { statusCode: number };
-  res.statusCode = statusCode;
-  process.nextTick(() => {
-    res.emit('data', Buffer.from(body));
-    res.emit('end');
-  });
-  return res;
-}
-
-function mockHttpsGet(statusCode: number, body: string) {
-  mockedHttps.get.mockImplementation((_url: any, callback: any) => {
-    callback(createMockResponse(statusCode, body));
-    const req = new EventEmitter() as any;
-    req.end = jest.fn();
-    return req;
-  });
-}
-
 describe('pluginMetadataClient', () => {
   const originalEnv = process.env;
 
@@ -87,7 +66,7 @@ describe('pluginMetadataClient', () => {
 
   describe('getPluginMetadata', () => {
     it('fetches and parses plugin.yaml', async () => {
-      mockHttpsGet(200, SAMPLE_PLUGIN_YAML);
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
 
       const metadata = await getPluginMetadata(REGISTRY_PLUGIN);
 
@@ -99,42 +78,37 @@ describe('pluginMetadataClient', () => {
     });
 
     it('returns cached data on subsequent calls', async () => {
-      mockHttpsGet(200, SAMPLE_PLUGIN_YAML);
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
 
       await getPluginMetadata(REGISTRY_PLUGIN);
       await getPluginMetadata(REGISTRY_PLUGIN);
 
-      expect(mockedHttps.get).toHaveBeenCalledTimes(1);
+      expect(mockedFetchUrl).toHaveBeenCalledTimes(1);
     });
 
-    it('returns null for 404 responses', async () => {
-      mockHttpsGet(404, 'Not Found');
+    it('returns null on fetch failure', async () => {
+      mockedFetchUrl.mockRejectedValue(new Error('HTTP 404'));
 
       const metadata = await getPluginMetadata(REGISTRY_PLUGIN);
       expect(metadata).toBeNull();
     });
 
     it('returns null for invalid YAML', async () => {
-      mockHttpsGet(200, 'just a string');
+      mockedFetchUrl.mockResolvedValue('just a string');
 
       const metadata = await getPluginMetadata(REGISTRY_PLUGIN);
       expect(metadata).toBeNull();
     });
 
     it('returns null for YAML missing name field', async () => {
-      mockHttpsGet(200, 'description: something\nversion: 1.0.0');
+      mockedFetchUrl.mockResolvedValue('description: something\nversion: 1.0.0');
 
       const metadata = await getPluginMetadata(REGISTRY_PLUGIN);
       expect(metadata).toBeNull();
     });
 
     it('returns null for network errors', async () => {
-      mockedHttps.get.mockImplementation((_url: any, _callback: any) => {
-        const req = new EventEmitter() as any;
-        req.end = jest.fn();
-        process.nextTick(() => req.emit('error', new Error('ECONNREFUSED')));
-        return req;
-      });
+      mockedFetchUrl.mockRejectedValue(new Error('ECONNREFUSED'));
 
       const metadata = await getPluginMetadata(REGISTRY_PLUGIN);
       expect(metadata).toBeNull();
@@ -151,20 +125,19 @@ describe('pluginMetadataClient', () => {
     });
 
     it('constructs correct raw GitHub URL', async () => {
-      mockHttpsGet(200, SAMPLE_PLUGIN_YAML);
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
 
       await getPluginMetadata(REGISTRY_PLUGIN);
 
-      expect(mockedHttps.get).toHaveBeenCalledWith(
+      expect(mockedFetchUrl).toHaveBeenCalledWith(
         'https://raw.githubusercontent.com/rh-aiservices-bu/odh-tec/main/plugin.yaml',
-        expect.any(Function),
       );
     });
   });
 
   describe('getAllPluginMetadata', () => {
     it('fetches metadata for all plugins', async () => {
-      mockHttpsGet(200, SAMPLE_PLUGIN_YAML);
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
 
       const result = await getAllPluginMetadata([REGISTRY_PLUGIN, REGISTRY_PLUGIN_2]);
 
@@ -175,16 +148,10 @@ describe('pluginMetadataClient', () => {
 
     it('handles mixed success/failure', async () => {
       let callCount = 0;
-      mockedHttps.get.mockImplementation((_url: any, callback: any) => {
+      mockedFetchUrl.mockImplementation(async () => {
         callCount++;
-        if (callCount === 1) {
-          callback(createMockResponse(200, SAMPLE_PLUGIN_YAML));
-        } else {
-          callback(createMockResponse(404, 'Not Found'));
-        }
-        const req = new EventEmitter() as any;
-        req.end = jest.fn();
-        return req;
+        if (callCount === 1) return SAMPLE_PLUGIN_YAML;
+        throw new Error('HTTP 404');
       });
 
       const result = await getAllPluginMetadata([REGISTRY_PLUGIN, REGISTRY_PLUGIN_2]);
@@ -196,24 +163,24 @@ describe('pluginMetadataClient', () => {
 
   describe('clearPluginCache', () => {
     it('clears a specific plugin cache', async () => {
-      mockHttpsGet(200, SAMPLE_PLUGIN_YAML);
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
 
       await getPluginMetadata(REGISTRY_PLUGIN);
       clearPluginCache('brewet');
       await getPluginMetadata(REGISTRY_PLUGIN);
 
-      expect(mockedHttps.get).toHaveBeenCalledTimes(2);
+      expect(mockedFetchUrl).toHaveBeenCalledTimes(2);
     });
 
     it('clears all plugin caches', async () => {
-      mockHttpsGet(200, SAMPLE_PLUGIN_YAML);
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
 
       await getPluginMetadata(REGISTRY_PLUGIN);
       await getPluginMetadata(REGISTRY_PLUGIN_2);
       clearPluginCache();
       await getPluginMetadata(REGISTRY_PLUGIN);
 
-      expect(mockedHttps.get).toHaveBeenCalledTimes(3);
+      expect(mockedFetchUrl).toHaveBeenCalledTimes(3);
     });
   });
 });

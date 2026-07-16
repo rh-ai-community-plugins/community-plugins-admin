@@ -1,11 +1,9 @@
-import https from 'https';
-import { EventEmitter } from 'events';
 import { getRegistryPlugins, clearCharterCache } from '../src/services/charterClient';
+import * as httpClient from '../src/utils/httpClient';
 
-jest.mock('https');
-jest.mock('http');
+jest.mock('../src/utils/httpClient');
 
-const mockedHttps = jest.mocked(https);
+const mockedFetchUrl = jest.mocked(httpClient.fetchUrl);
 
 const SAMPLE_YAML = `
 plugins:
@@ -20,25 +18,6 @@ plugins:
     maintenance: community
     last_updated: 2026-06-24
 `;
-
-function createMockResponse(statusCode: number, body: string) {
-  const res = new EventEmitter() as EventEmitter & { statusCode: number };
-  res.statusCode = statusCode;
-  process.nextTick(() => {
-    res.emit('data', Buffer.from(body));
-    res.emit('end');
-  });
-  return res;
-}
-
-function mockHttpsGet(statusCode: number, body: string) {
-  mockedHttps.get.mockImplementation((_url: any, callback: any) => {
-    callback(createMockResponse(statusCode, body));
-    const req = new EventEmitter() as any;
-    req.end = jest.fn();
-    return req;
-  });
-}
 
 describe('charterClient', () => {
   const originalEnv = process.env;
@@ -56,7 +35,7 @@ describe('charterClient', () => {
   });
 
   it('fetches and parses the registry YAML', async () => {
-    mockHttpsGet(200, SAMPLE_YAML);
+    mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
 
     const plugins = await getRegistryPlugins();
 
@@ -72,27 +51,21 @@ describe('charterClient', () => {
   });
 
   it('returns cached data on subsequent calls', async () => {
-    mockHttpsGet(200, SAMPLE_YAML);
+    mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
 
     const first = await getRegistryPlugins();
     const second = await getRegistryPlugins();
 
-    expect(mockedHttps.get).toHaveBeenCalledTimes(1);
+    expect(mockedFetchUrl).toHaveBeenCalledTimes(1);
     expect(second).toBe(first);
   });
 
   it('serves stale cache on fetch failure', async () => {
-    mockHttpsGet(200, SAMPLE_YAML);
+    mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
     await getRegistryPlugins();
 
     process.env.CHARTER_CACHE_TTL_MS = '0';
-
-    mockedHttps.get.mockImplementation((_url: any, _callback: any) => {
-      const req = new EventEmitter() as any;
-      req.end = jest.fn();
-      process.nextTick(() => req.emit('error', new Error('Network error')));
-      return req;
-    });
+    mockedFetchUrl.mockRejectedValue(new Error('Network error'));
 
     const plugins = await getRegistryPlugins();
     expect(plugins).toHaveLength(2);
@@ -100,47 +73,33 @@ describe('charterClient', () => {
   });
 
   it('throws on fetch failure when no cache exists', async () => {
-    mockedHttps.get.mockImplementation((_url: any, _callback: any) => {
-      const req = new EventEmitter() as any;
-      req.end = jest.fn();
-      process.nextTick(() => req.emit('error', new Error('Network error')));
-      return req;
-    });
+    mockedFetchUrl.mockRejectedValue(new Error('Network error'));
 
     await expect(getRegistryPlugins()).rejects.toThrow('Network error');
   });
 
   it('throws on invalid YAML structure', async () => {
-    mockHttpsGet(200, 'not_plugins: true');
+    mockedFetchUrl.mockResolvedValue('not_plugins: true');
 
     await expect(getRegistryPlugins()).rejects.toThrow('Invalid registry format');
   });
 
-  it('throws on non-2xx HTTP status', async () => {
-    mockHttpsGet(404, 'Not Found');
-
-    await expect(getRegistryPlugins()).rejects.toThrow('HTTP 404');
-  });
-
   it('uses custom registry URL from env', async () => {
     process.env.CHARTER_REGISTRY_URL = 'https://example.com/plugins.yaml';
-    mockHttpsGet(200, SAMPLE_YAML);
+    mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
 
     await getRegistryPlugins();
 
-    expect(mockedHttps.get).toHaveBeenCalledWith(
-      'https://example.com/plugins.yaml',
-      expect.any(Function),
-    );
+    expect(mockedFetchUrl).toHaveBeenCalledWith('https://example.com/plugins.yaml');
   });
 
   it('clearCharterCache forces a re-fetch', async () => {
-    mockHttpsGet(200, SAMPLE_YAML);
+    mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
     await getRegistryPlugins();
 
     clearCharterCache();
     await getRegistryPlugins();
 
-    expect(mockedHttps.get).toHaveBeenCalledTimes(2);
+    expect(mockedFetchUrl).toHaveBeenCalledTimes(2);
   });
 });
