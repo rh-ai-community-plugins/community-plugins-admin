@@ -4,6 +4,7 @@ export interface RegistryPlugin {
   status: 'experimental' | 'stable';
   maintenance: 'red-hat' | 'community';
   last_updated: string;
+  default_branch?: string;
 }
 
 export interface RegistryFile {

@@ -34,16 +34,17 @@ function isCacheValid(entry: CacheEntry): boolean {
   return Date.now() - entry.fetchedAt < getCacheTtl();
 }
 
-function buildRawUrl(repoUrl: string): string | null {
-  const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
+function buildRawUrl(plugin: RegistryPlugin): string | null {
+  const match = plugin.repo.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) return null;
   const [, owner, repo] = match;
   const cleanRepo = repo.replace(/\.git$/, '');
-  return `https://raw.githubusercontent.com/${owner}/${cleanRepo}/main/plugin.yaml`;
+  const branch = plugin.default_branch ?? 'main';
+  return `https://raw.githubusercontent.com/${owner}/${cleanRepo}/${branch}/plugin.yaml`;
 }
 
 async function fetchPluginYaml(plugin: RegistryPlugin): Promise<PluginMetadata | null> {
-  const rawUrl = buildRawUrl(plugin.repo);
+  const rawUrl = buildRawUrl(plugin);
   if (!rawUrl) {
     console.warn(`Cannot build raw URL for plugin ${plugin.name}: ${plugin.repo}`);
     return null;
