@@ -144,14 +144,11 @@ const CatalogPage: React.FC = () => {
   const onFilterSelect = (
     filterKey: FilterKey,
     value: string,
-    currentFilters: string[],
     setFilters: React.Dispatch<React.SetStateAction<string[]>>,
   ) => {
-    if (currentFilters.includes(value)) {
-      setFilters(currentFilters.filter((f) => f !== value));
-    } else {
-      setFilters([...currentFilters, value]);
-    }
+    setFilters((prev) =>
+      prev.includes(value) ? prev.filter((f) => f !== value) : [...prev, value],
+    );
   };
 
   const renderFilterSelect = (
@@ -184,7 +181,6 @@ const CatalogPage: React.FC = () => {
           onFilterSelect(
             filterKey,
             value as string,
-            selected,
             setSelected,
           )
         }
