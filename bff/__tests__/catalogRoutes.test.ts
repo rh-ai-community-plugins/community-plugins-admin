@@ -1,5 +1,5 @@
 import http from 'http';
-import { getRegistryPlugins, clearCharterCache } from '../src/services/charterClient';
+import { getRegistryPlugins } from '../src/services/charterClient';
 import { getAllPluginMetadata, clearPluginCache } from '../src/services/pluginMetadataClient';
 import { RegistryPlugin, PluginMetadata } from '../src/types/catalog';
 
@@ -8,7 +8,6 @@ jest.mock('../src/services/pluginMetadataClient');
 
 const mockedGetRegistryPlugins = jest.mocked(getRegistryPlugins);
 const mockedGetAllPluginMetadata = jest.mocked(getAllPluginMetadata);
-const mockedClearCharterCache = jest.mocked(clearCharterCache);
 const mockedClearPluginCache = jest.mocked(clearPluginCache);
 
 const REGISTRY_PLUGINS: RegistryPlugin[] = [
@@ -105,23 +104,23 @@ describe('GET /api/catalog', () => {
     expect(sardeenz.displayName).toBeUndefined();
   });
 
-  it('clears caches when refresh=true', async () => {
+  it('passes forceRefresh=true to charterClient and clears plugin cache when refresh=true', async () => {
     mockedGetRegistryPlugins.mockResolvedValue([]);
     mockedGetAllPluginMetadata.mockResolvedValue(new Map());
 
     await request('/api/catalog?refresh=true');
 
-    expect(mockedClearCharterCache).toHaveBeenCalled();
+    expect(mockedGetRegistryPlugins).toHaveBeenCalledWith(true);
     expect(mockedClearPluginCache).toHaveBeenCalled();
   });
 
-  it('does not clear caches without refresh param', async () => {
+  it('passes forceRefresh=false and does not clear plugin cache without refresh param', async () => {
     mockedGetRegistryPlugins.mockResolvedValue([]);
     mockedGetAllPluginMetadata.mockResolvedValue(new Map());
 
     await request('/api/catalog');
 
-    expect(mockedClearCharterCache).not.toHaveBeenCalled();
+    expect(mockedGetRegistryPlugins).toHaveBeenCalledWith(false);
     expect(mockedClearPluginCache).not.toHaveBeenCalled();
   });
 

@@ -32,10 +32,14 @@ function isCacheValid(): boolean {
   return Date.now() - cache.fetchedAt < getCacheTtl();
 }
 
-export async function getRegistryPlugins(): Promise<RegistryPlugin[]> {
-  if (isCacheValid()) {
+export async function getRegistryPlugins(forceRefresh = false): Promise<RegistryPlugin[]> {
+  if (!forceRefresh && isCacheValid()) {
     return cache!.plugins;
   }
+
+  // Capture stale data before attempting fetch so it can serve as fallback on failure,
+  // even when forceRefresh=true has bypassed the cache validity check.
+  const staleCache = cache;
 
   try {
     const rawYaml = await fetchUrl(getRegistryUrl());
@@ -52,9 +56,9 @@ export async function getRegistryPlugins(): Promise<RegistryPlugin[]> {
 
     return cache.plugins;
   } catch (err) {
-    if (cache) {
+    if (staleCache) {
       console.warn('Charter registry fetch failed, serving stale cache:', (err as Error).message);
-      return cache.plugins;
+      return staleCache.plugins;
     }
     throw err;
   }

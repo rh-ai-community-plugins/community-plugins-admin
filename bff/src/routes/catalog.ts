@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { getRegistryPlugins, clearCharterCache } from '../services/charterClient';
+import { getRegistryPlugins } from '../services/charterClient';
 import { getAllPluginMetadata, clearPluginCache } from '../services/pluginMetadataClient';
 import { CatalogPlugin, CatalogPluginInstall, CatalogPluginRbac, PluginMetadata, RegistryPlugin } from '../types/catalog';
 
@@ -63,12 +63,12 @@ function buildCatalogPlugin(
 
 router.get('/', async (req: Request, res: Response) => {
   try {
-    if (req.query.refresh === 'true') {
-      clearCharterCache();
+    const forceRefresh = req.query.refresh === 'true';
+    if (forceRefresh) {
       clearPluginCache();
     }
 
-    const registryPlugins = await getRegistryPlugins();
+    const registryPlugins = await getRegistryPlugins(forceRefresh);
     const metadataMap = await getAllPluginMetadata(registryPlugins);
 
     const catalog: CatalogPlugin[] = registryPlugins.map((plugin) =>
