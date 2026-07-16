@@ -1,5 +1,4 @@
 import express from 'express';
-import { namespaceSummaryHandler } from './routes/namespaceSummary';
 import { getK8sBaseUrl } from './utils/k8sClient';
 
 const app = express();
@@ -13,8 +12,9 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(express.json());
+
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
-app.get('/api/namespace-summary', namespaceSummaryHandler);
 
 app.listen(PORT, () => {
   try {
