@@ -23,6 +23,9 @@ export function useCatalog() {
         return res.json();
       })
       .then((data: CatalogResponse) => {
+        if (!Array.isArray(data.plugins)) {
+          throw new Error('Invalid catalog response');
+        }
         setPlugins(data.plugins);
         setLoading(false);
       })

@@ -278,22 +278,23 @@ const CatalogPage: React.FC = () => {
 
   const renderPluginCard = (plugin: CatalogPlugin) => {
     const isInstalled = installedNames.has(plugin.name);
+    const displayName = plugin.displayName ?? plugin.name;
     return (
       <GalleryItem key={plugin.name}>
-        <Card
-          isClickable
-          onClick={() => setSelectedPlugin(plugin.name)}
-        >
-          <CardHeader>
+        <Card isClickable>
+          <CardHeader
+            selectableActions={{
+              onClickAction: () => setSelectedPlugin(plugin.name),
+              selectableActionAriaLabel: `View details for ${displayName}`,
+            }}
+          >
             <Flex
               justifyContent={{ default: 'justifyContentSpaceBetween' }}
               alignItems={{ default: 'alignItemsCenter' }}
               className="pf-v6-u-w-100"
             >
               <FlexItem>
-                <CardTitle>
-                  {plugin.displayName ?? plugin.name}
-                </CardTitle>
+                <CardTitle>{displayName}</CardTitle>
               </FlexItem>
               {isInstalled && (
                 <FlexItem>
@@ -311,12 +312,12 @@ const CatalogPage: React.FC = () => {
               </div>
             )}
             {!plugin.metadataAvailable && (
-              <div className="pf-v6-u-mb-sm pf-v6-u-color-200">
+              <div className="pf-v6-u-mb-sm" style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
                 Metadata unavailable
               </div>
             )}
             {plugin.version && (
-              <div className="pf-v6-u-mb-sm pf-v6-u-font-size-sm pf-v6-u-color-200">
+              <div className="pf-v6-u-mb-sm pf-v6-u-font-size-sm" style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
                 Version {plugin.version}
               </div>
             )}

@@ -184,9 +184,44 @@ describe('CatalogPage', () => {
 
   it('opens plugin detail modal when card is clicked', () => {
     render(<CatalogPage />);
-    const alphaCard = screen.getByText('Plugin Alpha').closest('.pf-v6-c-card');
-    fireEvent.click(alphaCard!);
+    const cardButton = screen.getByLabelText('View details for Plugin Alpha');
+    fireEvent.click(cardButton);
     expect(screen.getByText('plugin-alpha')).toBeInTheDocument();
+  });
+
+  it('filters plugins when only stable plugins match', () => {
+    mockUseCatalog.mockReturnValue({
+      ...defaultCatalogReturn,
+      plugins: mockPlugins.filter((p) => p.status === 'stable'),
+    });
+    render(<CatalogPage />);
+
+    expect(screen.getByText('Plugin Alpha')).toBeInTheDocument();
+    expect(screen.queryByText('Plugin Beta')).not.toBeInTheDocument();
+    expect(screen.queryByText('plugin-gamma')).not.toBeInTheDocument();
+  });
+
+  it('filters plugins when only community maintenance plugins are returned', () => {
+    mockUseCatalog.mockReturnValue({
+      ...defaultCatalogReturn,
+      plugins: mockPlugins.filter((p) => p.maintenance === 'community'),
+    });
+    render(<CatalogPage />);
+
+    expect(screen.queryByText('Plugin Alpha')).not.toBeInTheDocument();
+    expect(screen.getByText('Plugin Beta')).toBeInTheDocument();
+    expect(screen.queryByText('plugin-gamma')).not.toBeInTheDocument();
+  });
+
+  it('shows only installed plugins when all non-installed are filtered by search', () => {
+    render(<CatalogPage />);
+    const searchInput = screen.getByPlaceholderText('Search by name or description');
+    fireEvent.change(searchInput, { target: { value: 'Alpha' } });
+
+    expect(screen.getByText('Plugin Alpha')).toBeInTheDocument();
+    const alphaCard = screen.getByText('Plugin Alpha').closest('.pf-v6-c-card');
+    expect(within(alphaCard! as HTMLElement).getByText('Installed')).toBeInTheDocument();
+    expect(screen.queryByText('Plugin Beta')).not.toBeInTheDocument();
   });
 
   it('shows refresh button that calls refetch', () => {

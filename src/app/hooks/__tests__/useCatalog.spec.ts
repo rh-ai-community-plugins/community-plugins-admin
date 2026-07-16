@@ -74,6 +74,20 @@ describe('useCatalog', () => {
     expect(result.current.error).toBe('Network error');
   });
 
+  it('should return error on invalid response shape', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ error: 'something went wrong' }),
+    });
+
+    const { result } = renderHook(() => useCatalog());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.plugins).toEqual([]);
+    expect(result.current.error).toBe('Invalid catalog response');
+  });
+
   it('should refetch with refresh=true when refetch is called', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
