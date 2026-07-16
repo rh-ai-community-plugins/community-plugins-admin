@@ -278,4 +278,36 @@ describe('CatalogPage', () => {
     fireEvent.click(screen.getByLabelText('Refresh catalog'));
     expect(refetch).toHaveBeenCalledTimes(1);
   });
+
+  it('shows warning alert when installedError is set', () => {
+    mockUseInstalledPluginNames.mockReturnValue({
+      installedNames: new Set(),
+      loading: false,
+      error: 'Failed to fetch dashboard deployment: 403',
+    });
+    render(<CatalogPage />);
+    expect(
+      screen.getByText('Unable to determine installed plugin status'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Install badges may be incomplete.')).toBeInTheDocument();
+  });
+
+  it('still renders the catalog when installedError is set — warning is non-blocking', () => {
+    mockUseInstalledPluginNames.mockReturnValue({
+      installedNames: new Set(),
+      loading: false,
+      error: 'Failed to fetch dashboard deployment: 500',
+    });
+    render(<CatalogPage />);
+    expect(screen.getByText('Plugin Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Plugin Beta')).toBeInTheDocument();
+    expect(screen.getByText('plugin-gamma')).toBeInTheDocument();
+  });
+
+  it('does not show warning alert when installedError is null', () => {
+    render(<CatalogPage />);
+    expect(
+      screen.queryByText('Unable to determine installed plugin status'),
+    ).not.toBeInTheDocument();
+  });
 });
