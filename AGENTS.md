@@ -79,7 +79,23 @@ Five hooks in `src/app/hooks/` provide data fetching and API integration:
 
 ### BFF Service
 
-The `bff/` directory contains a standalone Express.js + TypeScript backend service that implements the BFF pattern. The dashboard proxies requests from `/community-plugins-admin/api/*` to this service, forwarding the user's Bearer token. Currently exposes only a health endpoint (`GET /api/health`). The BFF will handle aggregation and caching of plugin metadata fetched from multiple external repos (charter registry + individual plugin repos). See `docs/architecture/BFF_PATTERN.md` for details.
+The `bff/` directory contains a standalone Express.js + TypeScript backend service that implements the BFF pattern. The dashboard proxies requests from `/community-plugins-admin/api/*` to this service, forwarding the user's Bearer token. See `docs/architecture/BFF_PATTERN.md` for details.
+
+The BFF app is defined in `bff/src/app.ts` (Express middleware and routes) and started in `bff/src/server.ts` (listen + K8s config logging). This split allows tests to import the app without starting a persistent server.
+
+**Endpoints:**
+
+- `GET /api/health` — liveness probe
+- `GET /api/catalog` — merged list of all community plugins (registry entry + resolved metadata). Supports `?refresh=true` to force cache invalidation.
+- `GET /api/catalog/:name` — full metadata for a single plugin
+
+**Services:**
+
+- `bff/src/services/charterClient.ts` — fetches `plugins.yaml` from the charter registry on GitHub, parses YAML, caches in-memory with configurable TTL (default 5 min, `CHARTER_CACHE_TTL_MS` env var). Serves stale cache on fetch failure.
+- `bff/src/services/pluginMetadataClient.ts` — fetches `plugin.yaml` from each plugin's GitHub repo, parses and validates, per-plugin cache with TTL (`PLUGIN_CACHE_TTL_MS`), concurrent fetches with configurable limit (`PLUGIN_FETCH_CONCURRENCY`, default 5). Returns null for plugins with missing/invalid metadata.
+- `bff/src/utils/httpClient.ts` — shared HTTP fetch utility with redirect following, used by both service clients.
+
+**Types:** `bff/src/types/catalog.ts` defines `RegistryPlugin` (upstream YAML schema), `PluginMetadata` (plugin.yaml schema), and `CatalogPlugin` (camelCase API response shape).
 
 ### Entry Point Chain
 
