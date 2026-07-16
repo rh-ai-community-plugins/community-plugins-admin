@@ -68,7 +68,7 @@ const maintenanceLabelColor = (maintenance: string): 'orange' | 'teal' =>
 
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();
-  const { installedNames, loading: installedLoading } = useInstalledPluginNames();
+  const { installedNames, loading: installedLoading, error: installedError } = useInstalledPluginNames();
 
   const [searchText, setSearchText] = useState('');
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -370,6 +370,16 @@ const CatalogPage: React.FC = () => {
         <Title headingLevel="h1" className="pf-v6-u-mb-md">
           Catalog
         </Title>
+        {installedError && (
+          <Alert
+            variant="warning"
+            title="Unable to determine installed plugin status"
+            isInline
+            className="pf-v6-u-mb-md"
+          >
+            Install badges may be incomplete.
+          </Alert>
+        )}
         {toolbar}
         {filteredPlugins.length === 0 ? (
           <EmptyState
