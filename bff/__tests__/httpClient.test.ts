@@ -169,6 +169,56 @@ describe('fetchUrl', () => {
     expect(errorRes.resume).toHaveBeenCalledTimes(1);
   });
 
+  it('resolves a relative Location header against the original URL', async () => {
+    const urls: string[] = [];
+    let callCount = 0;
+    mockedHttps.get.mockImplementation((_url: any, _opts: any, callback: any) => {
+      if (typeof _opts === 'function') {
+        callback = _opts;
+      }
+      urls.push(_url);
+      callCount++;
+      if (callCount === 1) {
+        callback(createMockResponse(301, '', { location: '/new-path' }));
+      } else {
+        callback(createMockResponse(200, 'resolved content'));
+      }
+      const req = new EventEmitter() as any;
+      req.end = jest.fn();
+      req.destroy = jest.fn();
+      return req;
+    });
+
+    const result = await fetchUrl('https://example.com/original');
+    expect(result).toBe('resolved content');
+    expect(urls[1]).toBe('https://example.com/new-path');
+  });
+
+  it('resolves a relative Location header with a path-relative URL', async () => {
+    const urls: string[] = [];
+    let callCount = 0;
+    mockedHttps.get.mockImplementation((_url: any, _opts: any, callback: any) => {
+      if (typeof _opts === 'function') {
+        callback = _opts;
+      }
+      urls.push(_url);
+      callCount++;
+      if (callCount === 1) {
+        callback(createMockResponse(302, '', { location: 'sibling' }));
+      } else {
+        callback(createMockResponse(200, 'sibling content'));
+      }
+      const req = new EventEmitter() as any;
+      req.end = jest.fn();
+      req.destroy = jest.fn();
+      return req;
+    });
+
+    const result = await fetchUrl('https://example.com/dir/original');
+    expect(result).toBe('sibling content');
+    expect(urls[1]).toBe('https://example.com/dir/sibling');
+  });
+
   it('rejects on timeout', async () => {
     mockedHttps.get.mockImplementation((_url: any, _opts: any, _callback: any) => {
       const req = new EventEmitter() as any;
