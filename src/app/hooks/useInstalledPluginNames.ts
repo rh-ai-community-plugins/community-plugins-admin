@@ -39,11 +39,20 @@ export function useInstalledPluginNames() {
           );
           if (mfConfig?.value) {
             try {
-              const entries: ModuleFederationEntry[] = JSON.parse(
-                mfConfig.value,
-              );
+              const parsed: unknown = JSON.parse(mfConfig.value);
+              if (!Array.isArray(parsed)) {
+                throw new Error(
+                  `MODULE_FEDERATION_CONFIG is not an array (got ${typeof parsed})`,
+                );
+              }
+              const entries = parsed as ModuleFederationEntry[];
               setInstalledNames(new Set(entries.map((e) => e.scope)));
-            } catch {
+            } catch (parseErr) {
+              setError(
+                parseErr instanceof Error
+                  ? parseErr.message
+                  : String(parseErr),
+              );
               setInstalledNames(new Set());
             }
             setLoading(false);

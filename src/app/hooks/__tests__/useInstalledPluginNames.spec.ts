@@ -79,7 +79,7 @@ describe('useInstalledPluginNames', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('should return empty set on invalid JSON in MODULE_FEDERATION_CONFIG', async () => {
+  it('should return empty set and set error on invalid JSON in MODULE_FEDERATION_CONFIG', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
       json: () =>
@@ -109,6 +109,44 @@ describe('useInstalledPluginNames', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.installedNames).toEqual(new Set());
+    expect(result.current.error).toBeTruthy();
+  });
+
+  it('should return empty set and set error when MODULE_FEDERATION_CONFIG is valid JSON but not an array', async () => {
+    const nonArrayValues = [
+      JSON.stringify({}),
+      JSON.stringify(null),
+      JSON.stringify('string'),
+      JSON.stringify(42),
+    ];
+
+    for (const value of nonArrayValues) {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            spec: {
+              template: {
+                spec: {
+                  containers: [
+                    {
+                      name: 'rhods-dashboard',
+                      env: [{ name: 'MODULE_FEDERATION_CONFIG', value }],
+                    },
+                  ],
+                },
+              },
+            },
+          }),
+      });
+
+      const { result } = renderHook(() => useInstalledPluginNames());
+
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      expect(result.current.installedNames).toEqual(new Set());
+      expect(result.current.error).toMatch(/MODULE_FEDERATION_CONFIG is not an array/);
+    }
   });
 
   it('should return empty set and error on fetch failure', async () => {
