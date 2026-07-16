@@ -102,4 +102,36 @@ describe('charterClient', () => {
 
     expect(mockedFetchUrl).toHaveBeenCalledTimes(2);
   });
+
+  describe('forceRefresh', () => {
+    it('fetches fresh data even when cache is still valid', async () => {
+      mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
+      await getRegistryPlugins();
+
+      mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
+      await getRegistryPlugins(true);
+
+      expect(mockedFetchUrl).toHaveBeenCalledTimes(2);
+    });
+
+    it('serves stale cache as fallback when forced refresh fetch fails', async () => {
+      // Populate cache with valid data
+      mockedFetchUrl.mockResolvedValue(SAMPLE_YAML);
+      await getRegistryPlugins();
+
+      // Simulate a fetch failure during forced refresh
+      mockedFetchUrl.mockRejectedValue(new Error('GitHub rate limited'));
+
+      const plugins = await getRegistryPlugins(true);
+
+      expect(plugins).toHaveLength(2);
+      expect(plugins[0].name).toBe('brewet');
+    });
+
+    it('rethrows when forced refresh fails and no cache exists', async () => {
+      mockedFetchUrl.mockRejectedValue(new Error('GitHub unavailable'));
+
+      await expect(getRegistryPlugins(true)).rejects.toThrow('GitHub unavailable');
+    });
+  });
 });
