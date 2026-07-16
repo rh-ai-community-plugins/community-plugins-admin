@@ -17,7 +17,8 @@ export function fetchUrl(url: string, redirectsRemaining = MAX_REDIRECTS): Promi
             return;
           }
           res.resume();
-          fetchUrl(res.headers.location, redirectsRemaining - 1).then(resolve, reject);
+          const resolved = new URL(res.headers.location, url).href;
+          fetchUrl(resolved, redirectsRemaining - 1).then(resolve, reject);
           return;
         }
         if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
