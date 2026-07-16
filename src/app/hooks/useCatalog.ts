@@ -4,12 +4,17 @@ import { CatalogPlugin, CatalogResponse } from '~/app/types/catalog';
 export function useCatalog() {
   const [plugins, setPlugins] = useState<CatalogPlugin[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
+    if (fetchCount === 0) {
+      setLoading(true);
+    } else {
+      setIsRefetching(true);
+    }
     setError(null);
 
     const url =
@@ -28,11 +33,13 @@ export function useCatalog() {
         }
         setPlugins(data.plugins);
         setLoading(false);
+        setIsRefetching(false);
       })
       .catch((e) => {
         if (e.name === 'AbortError') return;
         setError(e.message);
         setLoading(false);
+        setIsRefetching(false);
       });
 
     return () => controller.abort();
@@ -42,5 +49,5 @@ export function useCatalog() {
     setFetchCount((c) => c + 1);
   }, []);
 
-  return { plugins, loading, error, refetch };
+  return { plugins, loading, isRefetching, error, refetch };
 }

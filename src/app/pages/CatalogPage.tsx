@@ -67,7 +67,7 @@ const maintenanceLabelColor = (maintenance: string): 'orange' | 'teal' =>
   maintenance === 'red-hat' ? 'orange' : 'teal';
 
 const CatalogPage: React.FC = () => {
-  const { plugins, loading, error, refetch } = useCatalog();
+  const { plugins, loading, isRefetching, error, refetch } = useCatalog();
   const { installedNames } = useInstalledPluginNames();
 
   const [searchText, setSearchText] = useState('');
@@ -264,9 +264,12 @@ const CatalogPage: React.FC = () => {
           </ToolbarGroup>
         </ToolbarToggleGroup>
         <ToolbarItem>
-          <Button variant="plain" onClick={refetch} aria-label="Refresh catalog">
+          <Button variant="plain" onClick={refetch} aria-label="Refresh catalog" isDisabled={isRefetching}>
             Refresh
           </Button>
+          {isRefetching && (
+            <Spinner size="md" aria-label="Refreshing catalog" style={{ marginLeft: 'var(--pf-t--global--spacer--sm)' }} />
+          )}
         </ToolbarItem>
       </ToolbarContent>
     </Toolbar>
