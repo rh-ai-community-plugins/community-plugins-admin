@@ -68,7 +68,7 @@ const maintenanceLabelColor = (maintenance: string): 'orange' | 'teal' =>
 
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();
-  const { installedNames } = useInstalledPluginNames();
+  const { installedNames, loading: installedLoading } = useInstalledPluginNames();
 
   const [searchText, setSearchText] = useState('');
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -341,7 +341,7 @@ const CatalogPage: React.FC = () => {
     );
   };
 
-  if (loading) {
+  if (loading || installedLoading) {
     return (
       <PageSection>
         <Bullseye>

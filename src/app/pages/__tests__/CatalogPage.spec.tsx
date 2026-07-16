@@ -89,6 +89,17 @@ describe('CatalogPage', () => {
     expect(screen.getByLabelText('Loading catalog')).toBeInTheDocument();
   });
 
+  it('shows loading spinner when installedNames is still loading (race condition guard)', () => {
+    mockUseInstalledPluginNames.mockReturnValue({
+      installedNames: new Set(),
+      loading: true,
+      error: null,
+    });
+    render(<CatalogPage />);
+    expect(screen.getByLabelText('Loading catalog')).toBeInTheDocument();
+    expect(screen.queryByText('Plugin Alpha')).not.toBeInTheDocument();
+  });
+
   it('does not show full-page spinner during refetch — keeps card grid visible', () => {
     mockUseCatalog.mockReturnValue({
       ...defaultCatalogReturn,
