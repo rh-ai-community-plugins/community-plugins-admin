@@ -49,6 +49,7 @@ const mockPlugins: CatalogPlugin[] = [
 const defaultCatalogReturn = {
   plugins: mockPlugins,
   loading: false,
+  isRefetching: false,
   error: null,
   refetch: jest.fn(),
 };
@@ -78,7 +79,7 @@ describe('CatalogPage', () => {
     expect(screen.getByText('plugin-gamma')).toBeInTheDocument();
   });
 
-  it('shows loading spinner when loading', () => {
+  it('shows loading spinner when loading (initial load with no data)', () => {
     mockUseCatalog.mockReturnValue({
       ...defaultCatalogReturn,
       loading: true,
@@ -86,6 +87,38 @@ describe('CatalogPage', () => {
     });
     render(<CatalogPage />);
     expect(screen.getByLabelText('Loading catalog')).toBeInTheDocument();
+  });
+
+  it('does not show full-page spinner during refetch — keeps card grid visible', () => {
+    mockUseCatalog.mockReturnValue({
+      ...defaultCatalogReturn,
+      isRefetching: true,
+      loading: false,
+    });
+    render(<CatalogPage />);
+    expect(screen.queryByLabelText('Loading catalog')).not.toBeInTheDocument();
+    expect(screen.getByText('Plugin Alpha')).toBeInTheDocument();
+    expect(screen.getByText('Plugin Beta')).toBeInTheDocument();
+  });
+
+  it('shows inline refetch spinner in toolbar during refetch', () => {
+    mockUseCatalog.mockReturnValue({
+      ...defaultCatalogReturn,
+      isRefetching: true,
+      loading: false,
+    });
+    render(<CatalogPage />);
+    expect(screen.getByLabelText('Refreshing catalog')).toBeInTheDocument();
+  });
+
+  it('disables Refresh button while refetch is in flight', () => {
+    mockUseCatalog.mockReturnValue({
+      ...defaultCatalogReturn,
+      isRefetching: true,
+      loading: false,
+    });
+    render(<CatalogPage />);
+    expect(screen.getByLabelText('Refresh catalog')).toBeDisabled();
   });
 
   it('shows error alert on error', () => {
