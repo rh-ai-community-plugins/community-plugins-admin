@@ -16,6 +16,11 @@ module.exports = merge(common, {
         pathRewrite: { '^/community-plugins-admin/api': '/api' },
       },
       {
+        context: ['/api/k8s'], // K8s API pass-through — dashboard proxies /api/k8s to the cluster
+        target: 'http://localhost:8443',
+        secure: false,
+      },
+      {
         context: ['/community-plugins-admin'], // [PLUGIN-SPECIFIC] must match route prefix
         target: 'http://localhost:8443',
         pathRewrite: { '^/community-plugins-admin': '/community-plugins-admin' },
