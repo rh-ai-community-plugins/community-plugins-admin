@@ -49,10 +49,10 @@ npm run lint          # ESLint on bff/src/
 
 The plugin exposes two remote modules to the RHOAI dashboard host via Webpack Module Federation (configured inline in `config/webpack.common.js`):
 
-- **`./extensions`** (`src/rhoai/extensions.ts`) — Defines seven extension points:
+- **`./extensions`** (`src/rhoai/extensions.ts`) — Defines six extension points:
   - `app.area` — registers the `community-plugins-admin` feature area
   - `app.navigation/section` (x2) — `community-plugins` shared parent section (with `CommunityNavIcon`) and `community-plugins-admin` plugin subsection (with `CommunityPluginsAdminNavIcon`)
-  - `app.navigation/href` (x3) — "User Info", "Cluster Resources", and "Namespace Summary" nav items under the `community-plugins-admin` section
+  - `app.navigation/href` (x2) — "Catalog" and "Installed" nav items under the `community-plugins-admin` section
   - `app.route` — mounts the App component with wildcard routing at `/community-plugins-admin/*`
 - **`./Icon`** (`src/app/components/CommunityPluginsAdminNavIcon.tsx`) — SVG icon for the plugin's nav subsection. A separate `CommunityNavIcon.tsx` provides the icon for the shared `community-plugins` parent section.
 
@@ -60,28 +60,26 @@ Shared singletons (react, react-dom, react-router-dom, @patternfly/react-core, @
 
 ### Pages
 
-The plugin has three pages, routed under `/community-plugins-admin/*`. These are currently seed/demo pages that will be replaced with the actual plugin UI:
+The plugin has two pages, routed under `/community-plugins-admin/*`:
 
-- **User Info page** (`src/app/pages/UserInfoPage.tsx`) — Displays the authenticated user's information via `/api/status` (dashboard API pattern).
-- **Cluster Resources page** (`src/app/pages/ClusterResourcesPage.tsx`) — Create and list Deployments and Services via the dashboard's K8s API pass-through (`/api/k8s/*` pattern).
-- **Namespace Summary page** (`src/app/pages/NamespaceSummaryPage.tsx`) — Displays aggregated namespace and pod data via the plugin's own BFF service (BFF pattern).
+- **Catalog page** (`src/app/pages/CatalogPage.tsx`) — Browse available community plugins from the charter registry.
+- **Installed page** (`src/app/pages/InstalledPage.tsx`) — View and manage installed community plugins.
 
-These will be replaced with pages for plugin catalog browsing, plugin detail views, and admin management.
+A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) is a placeholder shell for the detail overlay that will be built out in Phase 5. It is not yet wired into either page.
 
 ### Custom Hooks
 
-Six hooks in `src/app/hooks/` provide data fetching and API integration. These are seed hooks demonstrating dashboard integration patterns — they will be replaced or adapted as the plugin's actual UI is built:
+Five hooks in `src/app/hooks/` provide data fetching and API integration:
 
 - `useCurrentUser` — Fetches authenticated user info from `/api/status`.
 - `useProjects` — Fetches accessible projects from the OpenShift projects API.
 - `useFavoriteProjects` — Manages localStorage-backed project favorites.
-- `useK8sResources` — Generic hook for listing K8s resources with create/delete helpers.
+- `useLastSelectedProject` — Persists the last-selected project in localStorage.
 - `useAccessReview` — Checks RBAC permissions via SelfSubjectAccessReview.
-- `useNamespaceSummary` — Fetches aggregated namespace and pod summary from the BFF endpoint.
 
 ### BFF Service
 
-The `bff/` directory contains a standalone Express.js + TypeScript backend service that implements the BFF pattern. The dashboard proxies requests from `/community-plugins-admin/api/*` to this service, forwarding the user's Bearer token. The BFF is expected to handle aggregation and caching of plugin metadata fetched from multiple external repos (charter registry + individual plugin repos). See `docs/architecture/BFF_PATTERN.md` for details.
+The `bff/` directory contains a standalone Express.js + TypeScript backend service that implements the BFF pattern. The dashboard proxies requests from `/community-plugins-admin/api/*` to this service, forwarding the user's Bearer token. Currently exposes only a health endpoint (`GET /api/health`). The BFF will handle aggregation and caching of plugin metadata fetched from multiple external repos (charter registry + individual plugin repos). See `docs/architecture/BFF_PATTERN.md` for details.
 
 ### Entry Point Chain
 

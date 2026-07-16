@@ -1,21 +1,15 @@
 import { render, screen } from '@testing-library/react';
 import App from '../App';
 
-jest.mock('../pages/UserInfoPage', () => {
-  const MockPage = () => <div data-testid="user-info-page">User Info Page</div>;
-  MockPage.displayName = 'MockUserInfoPage';
+jest.mock('../pages/CatalogPage', () => {
+  const MockPage = () => <div data-testid="catalog-page">Catalog Page</div>;
+  MockPage.displayName = 'MockCatalogPage';
   return { __esModule: true, default: MockPage };
 });
 
-jest.mock('../pages/ClusterResourcesPage', () => {
-  const MockPage = () => <div data-testid="cluster-resources-page">Cluster Resources Page</div>;
-  MockPage.displayName = 'MockClusterResourcesPage';
-  return { __esModule: true, default: MockPage };
-});
-
-jest.mock('../pages/NamespaceSummaryPage', () => {
-  const MockPage = () => <div data-testid="namespace-summary-page">Namespace Summary Page</div>;
-  MockPage.displayName = 'MockNamespaceSummaryPage';
+jest.mock('../pages/InstalledPage', () => {
+  const MockPage = () => <div data-testid="installed-page">Installed Page</div>;
+  MockPage.displayName = 'MockInstalledPage';
   return { __esModule: true, default: MockPage };
 });
 

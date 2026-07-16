@@ -10,7 +10,7 @@ The BFF (Backend For Frontend) pattern gives a plugin its own backend service. I
 
 ### When to Use a BFF
 
-- **Server-side aggregation** -- Combine multiple API calls into a single response (this plugin's Namespace Summary page demonstrates this)
+- **Server-side aggregation** -- Combine multiple API calls into a single response (e.g., fetching and merging plugin metadata from multiple repos)
 - **External service integration** -- Call third-party APIs using credentials stored server-side (API keys never reach the browser)
 - **Complex business logic** -- Processing that would be too expensive or impractical in the browser
 - **Data transformation** -- Heavy filtering, sorting, or enrichment before sending data to the frontend
@@ -30,32 +30,22 @@ The BFF (Backend For Frontend) pattern gives a plugin its own backend service. I
 ```text
 Browser                    Dashboard Backend              Plugin BFF              K8s API
   |                              |                            |                     |
-  |-- fetch('/community-plugins-admin/api/namespace-summary') ----------->|                     |
+  |-- fetch('/community-plugins-admin/api/health') --------->|                     |
   |                              |                            |                     |
   |                    [matches proxyService path]             |                     |
   |                    [authorize: true]                       |                     |
   |                              |                            |                     |
-  |                              |-- GET /api/namespace-summary                     |
+  |                              |-- GET /api/health          |                     |
   |                              |   Authorization: Bearer <user-token>             |
   |                              |--------------------------->|                     |
   |                              |                            |                     |
-  |                              |                            |-- GET /apis/...     |
-  |                              |                            |   Bearer <user-token>|
-  |                              |                            |------------------->|
-  |                              |                            |<-- projects list ---|
-  |                              |                            |                     |
-  |                              |                            |-- GET /api/v1/...   |
-  |                              |                            |   Bearer <user-token>|
-  |                              |                            |------------------->|
-  |                              |                            |<-- pods list -------|
-  |                              |                            |                     |
-  |                              |<-- aggregated response ----|                     |
+  |                              |<-- { status: "ok" } -------|                     |
   |<-- JSON response ------------|                            |                     |
 ```
 
 Key points:
 
-1. The frontend calls a path like `/community-plugins-admin/api/namespace-summary` at the same origin
+1. The frontend calls a path like `/community-plugins-admin/api/health` at the same origin
 2. The dashboard backend matches this against `proxyService` entries in the federation ConfigMap
 3. When `authorize: true`, the dashboard converts the user's `x-forwarded-access-token` into an `Authorization: Bearer <token>` header
 4. The BFF receives the user's actual OpenShift token and uses it for K8s API calls -- all RBAC permissions are the user's own
@@ -100,28 +90,21 @@ bff/
   tsconfig.json
   Containerfile             # UBI9 Node 22, runs on port 3000
   src/
-    server.ts               # Express app with health check + namespace summary route
-    types.ts                # Shared types (PodCounts, NamespaceInfo)
-    routes/
-      namespaceSummary.ts   # GET /api/namespace-summary handler
+    server.ts               # Express app with health endpoint
+    types.ts                # K8s resource types (retained for future BFF endpoints)
     utils/
-      k8sClient.ts          # Authenticated K8s API caller
+      k8sClient.ts          # Authenticated K8s API caller (retained for future BFF endpoints)
   __tests__/
-    namespaceSummary.test.ts
     k8sClient.test.ts
 ```
 
-### Endpoint: `GET /api/namespace-summary`
+### Endpoint: `GET /api/health`
 
-1. Extracts the Bearer token from the `Authorization` header
-2. Lists the user's projects via the OpenShift projects API (RBAC-scoped -- returns only projects the user can access)
-3. For each project, fetches pods and counts them by phase (Running, Pending, Succeeded, Failed, Unknown)
-4. Uses `Promise.allSettled` so one namespace failure doesn't break the entire response
-5. Returns an aggregated summary
+Returns `{ status: "ok" }`. Used by liveness probes and to verify the BFF is reachable through the dashboard proxy.
 
 ### K8s Client
 
-The `k8sClient.ts` utility makes authenticated requests to the K8s API server:
+The `k8sClient.ts` utility makes authenticated requests to the K8s API server. It is currently unused but retained for the catalog and lifecycle endpoints planned in Phases 2 and 6.
 
 - **In-cluster**: Uses `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT` env vars, reads the CA cert from the service account mount
 - **Local dev**: Uses the `K8S_API_BASE` env var to point at the cluster API
