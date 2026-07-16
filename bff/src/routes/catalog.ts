@@ -1,19 +1,19 @@
 import { Router, Request, Response } from 'express';
 import { getRegistryPlugins, clearCharterCache } from '../services/charterClient';
 import { getAllPluginMetadata, clearPluginCache } from '../services/pluginMetadataClient';
-import { CatalogPlugin, CatalogPluginInstall, CatalogPluginRbac, PluginMetadata } from '../types/catalog';
+import { CatalogPlugin, CatalogPluginInstall, CatalogPluginRbac, PluginMetadata, RegistryPlugin } from '../types/catalog';
 
 const router = Router();
 
 function buildCatalogPlugin(
-  registry: { name: string; repo: string; status: string; maintenance: string; last_updated: string },
+  registry: RegistryPlugin,
   metadata: PluginMetadata | null,
 ): CatalogPlugin {
   const base: CatalogPlugin = {
     name: registry.name,
     repo: registry.repo,
-    status: registry.status as CatalogPlugin['status'],
-    maintenance: registry.maintenance as CatalogPlugin['maintenance'],
+    status: registry.status,
+    maintenance: registry.maintenance,
     lastUpdated: registry.last_updated,
     metadataAvailable: metadata !== null,
   };

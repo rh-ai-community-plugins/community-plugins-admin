@@ -38,7 +38,8 @@ function buildRawUrl(repoUrl: string): string | null {
   const match = repoUrl.match(/github\.com\/([^/]+)\/([^/]+)/);
   if (!match) return null;
   const [, owner, repo] = match;
-  return `https://raw.githubusercontent.com/${owner}/${repo}/main/plugin.yaml`;
+  const cleanRepo = repo.replace(/\.git$/, '');
+  return `https://raw.githubusercontent.com/${owner}/${cleanRepo}/main/plugin.yaml`;
 }
 
 async function fetchPluginYaml(plugin: RegistryPlugin): Promise<PluginMetadata | null> {
