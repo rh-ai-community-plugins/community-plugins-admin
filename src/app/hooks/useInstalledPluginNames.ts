@@ -1,0 +1,67 @@
+import { useState, useEffect } from 'react';
+
+const DASHBOARD_NAMESPACE = 'redhat-ods-applications';
+const DASHBOARD_DEPLOYMENT = 'rhods-dashboard';
+
+interface ModuleFederationEntry {
+  scope: string;
+  module: string;
+  remoteEntry: string;
+}
+
+export function useInstalledPluginNames() {
+  const [installedNames, setInstalledNames] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch(
+      `/api/k8s/apis/apps/v1/namespaces/${DASHBOARD_NAMESPACE}/deployments/${DASHBOARD_DEPLOYMENT}`,
+      { signal: controller.signal },
+    )
+      .then((res) => {
+        if (!res.ok)
+          throw new Error(
+            `Failed to fetch dashboard deployment: ${res.status}`,
+          );
+        return res.json();
+      })
+      .then((deployment) => {
+        const containers =
+          deployment.spec?.template?.spec?.containers ?? [];
+        for (const container of containers) {
+          const envVars = container.env ?? [];
+          const mfConfig = envVars.find(
+            (e: { name: string }) =>
+              e.name === 'MODULE_FEDERATION_CONFIG',
+          );
+          if (mfConfig?.value) {
+            try {
+              const entries: ModuleFederationEntry[] = JSON.parse(
+                mfConfig.value,
+              );
+              setInstalledNames(new Set(entries.map((e) => e.scope)));
+            } catch {
+              setInstalledNames(new Set());
+            }
+            setLoading(false);
+            return;
+          }
+        }
+        setInstalledNames(new Set());
+        setLoading(false);
+      })
+      .catch((e) => {
+        if (e.name === 'AbortError') return;
+        setError(e.message);
+        setInstalledNames(new Set());
+        setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
+
+  return { installedNames, loading, error };
+}
