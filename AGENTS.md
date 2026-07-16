@@ -65,7 +65,7 @@ The plugin has two pages, routed under `/community-plugins-admin/*`:
 - **Catalog page** (`src/app/pages/CatalogPage.tsx`) — Browse available community plugins from the charter registry.
 - **Installed page** (`src/app/pages/InstalledPage.tsx`) — View and manage installed community plugins.
 
-A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) provides a detail overlay opened from either page.
+A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) is a placeholder shell for the detail overlay that will be built out in Phase 5. It is not yet wired into either page.
 
 ### Custom Hooks
 

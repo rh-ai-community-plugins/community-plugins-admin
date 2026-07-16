@@ -16,28 +16,26 @@ Directory structure of the plugin.
 │       │   ├── CommunityBanner.tsx  #     [SHARED] "Community Plugin" banner — do not modify
 │       │   ├── CommunityBanner.css  #     [SHARED] Banner styles — do not modify
 │       │   ├── CommunityPluginsAdminNavIcon.tsx#     [PLUGIN-SPECIFIC] Your plugin's sidebar icon
-│       │   └── ProjectSelector.tsx #     Project selector with fuzzy search and favorites
+│       │   └── PluginDetailModal.tsx #    Plugin detail modal (placeholder for Phase 5)
 │       ├── pages/                  #   One file per page/route
-│       │   ├── UserInfoPage.tsx    #     Uses dashboard API pattern (/api/status)
-│       │   ├── ClusterResourcesPage.tsx  # Uses K8s API pass-through (/api/k8s/*)
-│       │   └── NamespaceSummaryPage.tsx  # Uses BFF pattern (plugin's own backend)
+│       │   ├── CatalogPage.tsx     #     Browse available community plugins
+│       │   └── InstalledPage.tsx    #     View and manage installed plugins
 │       └── hooks/                  #   Data-fetching hooks
 │           ├── useCurrentUser.ts   #     Dashboard API
 │           ├── useProjects.ts      #     K8s API
 │           ├── useFavoriteProjects.ts  # localStorage-backed project favorites
-│           ├── useK8sResources.ts  #     K8s API (generic CRUD)
-│           ├── useAccessReview.ts  #     RBAC check via SelfSubjectAccessReview
-│           └── useNamespaceSummary.ts  # BFF call
+│           ├── useLastSelectedProject.ts  # localStorage-backed last project
+│           └── useAccessReview.ts  #     RBAC check via SelfSubjectAccessReview
 ├── config/                          # Webpack configs
 │   ├── webpack.common.js            #   Module Federation setup, loaders, path alias (~ → src)
 │   ├── webpack.dev.js               #   Dev server (port 9500), proxy rules
 │   └── webpack.prod.js              #   Production build to dist/
-├── bff/                             # Backend-For-Frontend service (optional — only if using BFF pattern)
+├── bff/                             # Backend-For-Frontend service
 │   └── src/
-│       ├── server.ts                #   Express server entry
-│       ├── types.ts                 #   Shared types (PodCounts, NamespaceInfo)
-│       ├── routes/                  #   API route handlers
-│       └── utils/                   #   K8s client helpers
+│       ├── server.ts                #   Express server entry (health endpoint)
+│       ├── types.ts                 #   K8s resource types (retained for future endpoints)
+│       └── utils/
+│           └── k8sClient.ts         #   Authenticated K8s API caller (retained for future endpoints)
 ├── chart/                           # Helm chart for OpenShift deployment
 ├── Makefile                         # Build, test, image, and chart targets (run `make help`)
 ├── plugin.yaml                      # Plugin metadata for the RHOAI registry

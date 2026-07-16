@@ -14,9 +14,7 @@ Call the dashboard's own backend endpoints (`/api/status`, `/api/config`, `/api/
 
 **When to use:** You need user identity, dashboard settings, or information the dashboard already aggregates.
 
-**See:** [User Info](../../src/app/pages/UserInfoPage.tsx) — calls `/api/status` to display the authenticated user's details.
-
-**How it works:** Your frontend code calls `fetch('/api/status')` directly. The dashboard backend handles authentication and returns JSON. No additional backend service needed.
+**How it works:** Your frontend code calls `fetch('/api/status')` directly. The dashboard backend handles authentication and returns JSON. No additional backend service needed. See `src/app/hooks/useCurrentUser.ts` for an example.
 
 See [section 1.2](#12-dashboard-backend-apis-callable-from-your-plugins-frontend) for the full API reference.
 
@@ -25,8 +23,6 @@ See [section 1.2](#12-dashboard-backend-apis-callable-from-your-plugins-frontend
 Use the dashboard's `/api/k8s/*` proxy to read, create, update, and delete any Kubernetes resource. Requests are forwarded to the cluster API server with the user's RBAC permissions — no cluster-admin needed, users only see and modify what their roles allow.
 
 **When to use:** You need to interact with Kubernetes resources (pods, deployments, services, custom resources, etc.) and the standard K8s API is sufficient.
-
-**See:** [Cluster Resources](../../src/app/pages/ClusterResourcesPage.tsx) — creates and lists Deployments and Services in the user's namespaces.
 
 **How it works:** Your frontend code calls `fetch('/api/k8s/apis/apps/v1/namespaces/my-ns/deployments')`. The dashboard backend proxies the request to the K8s API server, forwarding the user's token. The response is the standard Kubernetes API response.
 
@@ -43,9 +39,7 @@ Deploy your own backend service alongside the plugin. The dashboard proxies requ
 - You need to keep API keys or credentials server-side
 - You need server-side business logic or heavy data processing
 
-**See:** [Namespace Summary](../../src/app/pages/NamespaceSummaryPage.tsx) — calls the plugin's BFF, which lists the user's projects and counts pods per namespace server-side, returning a single aggregated response.
-
-**How it works:** Your frontend calls `fetch('/community-plugins-admin/api/namespace-summary')`. The dashboard matches the path against the `proxyService` configuration, rewrites it to `/api/namespace-summary`, and forwards the request to your BFF service with the user's Bearer token. Your BFF uses the token to make K8s API calls as the user.
+**Example:** The frontend calls `fetch('/community-plugins-admin/api/health')`. The dashboard matches the path against the `proxyService` configuration, rewrites it to `/api/health`, and forwards the request to your BFF service with the user's Bearer token. Your BFF can then use the token to make K8s API calls as the user.
 
 See [section 1.3](#13-using-your-own-backend-bff-pattern) below and the full [BFF Pattern guide](../architecture/BFF_PATTERN.md) for setup details, token flow, and deployment configuration.
 
@@ -483,7 +477,7 @@ const MyPage: React.FC = () => {
 
 The same approach works with `isAllowed` or with fine-grained RBAC checks via `useAccessReview` (see [section 2.4](#24-checking-user-permissions-rbac)) — for example, hiding a "Create" button when the user lacks `create` permission on a specific resource.
 
-**Live example:** The [User Info page](../../src/app/pages/UserInfoPage.tsx) includes an admin-only card that is only rendered when `user.isAdmin` is `true`.
+Use the `useCurrentUser` hook (`src/app/hooks/useCurrentUser.ts`) to access the current user's `isAdmin` status in your components.
 
 ### 2.6 Reading Dashboard Configuration
 
