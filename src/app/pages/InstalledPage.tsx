@@ -1,17 +1,13 @@
 import React from 'react';
 import {
   PageSection,
-  Title,
   EmptyState,
   EmptyStateBody,
 } from '@patternfly/react-core';
 
 const InstalledPage: React.FC = () => (
   <PageSection>
-    <Title headingLevel="h1" size="lg">
-      Installed Plugins
-    </Title>
-    <EmptyState>
+    <EmptyState titleText="Installed Plugins" headingLevel="h1">
       <EmptyStateBody>
         View and manage installed community plugins. Content coming soon.
       </EmptyStateBody>

@@ -1,17 +1,13 @@
 import React from 'react';
 import {
   PageSection,
-  Title,
   EmptyState,
   EmptyStateBody,
 } from '@patternfly/react-core';
 
 const CatalogPage: React.FC = () => (
   <PageSection>
-    <Title headingLevel="h1" size="lg">
-      Catalog
-    </Title>
-    <EmptyState>
+    <EmptyState titleText="Catalog" headingLevel="h1">
       <EmptyStateBody>
         Browse available community plugins. Catalog content coming soon.
       </EmptyStateBody>

@@ -10,7 +10,7 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
   pluginName,
   onClose,
 }) => (
-  <Modal isOpen={pluginName !== null} onClose={onClose} variant="large">
+  <Modal isOpen={!!pluginName} onClose={onClose} variant="large">
     <ModalHeader title={pluginName ?? ''} />
     <ModalBody>Plugin detail content coming soon.</ModalBody>
   </Modal>
