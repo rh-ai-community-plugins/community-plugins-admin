@@ -133,6 +133,86 @@ describe('GET /api/catalog', () => {
     expect(res.status).toBe(502);
     expect(res.body.error).toBe('Failed to fetch plugin catalog');
   });
+
+  it('includes warnings when all metadata fetches fail', async () => {
+    mockedGetRegistryPlugins.mockResolvedValue(REGISTRY_PLUGINS);
+    const metadataMap = new Map<string, PluginMetadata | null>();
+    metadataMap.set('brewet', null);
+    metadataMap.set('sardeenz', null);
+    mockedGetAllPluginMetadata.mockResolvedValue(metadataMap);
+
+    const res = await request('/api/catalog');
+
+    expect(res.status).toBe(200);
+    expect(res.body.plugins).toHaveLength(2);
+    expect(res.body.warnings).toBeDefined();
+    expect(res.body.warnings).toHaveLength(1);
+    expect(res.body.warnings[0]).toMatch(/Metadata unavailable for 2 of 2 plugins/);
+  });
+
+  it('includes warnings when more than 50% of metadata fetches fail', async () => {
+    const threePlugins: RegistryPlugin[] = [
+      ...REGISTRY_PLUGINS,
+      {
+        name: 'thirdplugin',
+        repo: 'https://github.com/rh-aiservices-bu/thirdplugin',
+        status: 'experimental',
+        maintenance: 'community',
+        last_updated: '2026-06-24',
+      },
+    ];
+    mockedGetRegistryPlugins.mockResolvedValue(threePlugins);
+    const metadataMap = new Map<string, PluginMetadata | null>();
+    metadataMap.set('brewet', null);
+    metadataMap.set('sardeenz', null);
+    metadataMap.set('thirdplugin', BREWET_METADATA);
+    mockedGetAllPluginMetadata.mockResolvedValue(metadataMap);
+
+    const res = await request('/api/catalog');
+
+    expect(res.status).toBe(200);
+    expect(res.body.warnings).toBeDefined();
+    expect(res.body.warnings[0]).toMatch(/Metadata unavailable for 2 of 3 plugins/);
+  });
+
+  it('does not include warnings when fewer than 50% of metadata fetches fail', async () => {
+    mockedGetRegistryPlugins.mockResolvedValue(REGISTRY_PLUGINS);
+    const metadataMap = new Map<string, PluginMetadata | null>();
+    metadataMap.set('brewet', BREWET_METADATA);
+    metadataMap.set('sardeenz', null);
+    mockedGetAllPluginMetadata.mockResolvedValue(metadataMap);
+
+    const res = await request('/api/catalog');
+
+    expect(res.status).toBe(200);
+    expect(res.body.warnings).toBeUndefined();
+  });
+
+  it('does not include warnings when all metadata is available', async () => {
+    mockedGetRegistryPlugins.mockResolvedValue(REGISTRY_PLUGINS);
+    const metadataMap = new Map<string, PluginMetadata | null>();
+    metadataMap.set('brewet', BREWET_METADATA);
+    metadataMap.set('sardeenz', BREWET_METADATA);
+    mockedGetAllPluginMetadata.mockResolvedValue(metadataMap);
+
+    const res = await request('/api/catalog');
+
+    expect(res.status).toBe(200);
+    expect(res.body.warnings).toBeUndefined();
+  });
+
+  it('does not include warnings when fewer than 2 plugins exist', async () => {
+    const singlePlugin: RegistryPlugin[] = [REGISTRY_PLUGINS[0]];
+    mockedGetRegistryPlugins.mockResolvedValue(singlePlugin);
+    const metadataMap = new Map<string, PluginMetadata | null>();
+    metadataMap.set('brewet', null);
+    mockedGetAllPluginMetadata.mockResolvedValue(metadataMap);
+
+    const res = await request('/api/catalog');
+
+    expect(res.status).toBe(200);
+    expect(res.body.warnings).toBeUndefined();
+  });
 });
 
 describe('GET /api/catalog/:name', () => {

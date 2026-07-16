@@ -75,7 +75,24 @@ router.get('/', async (req: Request, res: Response) => {
       buildCatalogPlugin(plugin, metadataMap.get(plugin.name) ?? null),
     );
 
-    res.json({ plugins: catalog });
+    const total = registryPlugins.length;
+    const nullCount = registryPlugins.filter(
+      (plugin) => (metadataMap.get(plugin.name) ?? null) === null,
+    ).length;
+
+    const warnings: string[] = [];
+    if (total >= 2 && nullCount / total > 0.5) {
+      const msg = `Metadata unavailable for ${nullCount} of ${total} plugins. This may indicate a temporary issue fetching plugin details.`;
+      console.warn(msg);
+      warnings.push(msg);
+    }
+
+    const response: { plugins: CatalogPlugin[]; warnings?: string[] } = { plugins: catalog };
+    if (warnings.length > 0) {
+      response.warnings = warnings;
+    }
+
+    res.json(response);
   } catch (err) {
     console.error('Failed to build catalog:', (err as Error).message);
     res.status(502).json({ error: 'Failed to fetch plugin catalog' });
