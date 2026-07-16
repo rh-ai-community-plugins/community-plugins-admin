@@ -26,6 +26,7 @@ import {
   EmptyStateBody,
   EmptyStateActions,
   EmptyStateFooter,
+  Badge,
   Button,
   Title,
   Bullseye,
@@ -196,7 +197,7 @@ const CatalogPage: React.FC = () => {
           >
             {label}
             {selected.length > 0 && (
-              <>{' '}<span className="pf-v6-c-badge pf-m-read">{selected.length}</span></>
+              <>{' '}<Badge isRead>{selected.length}</Badge></>
             )}
           </MenuToggle>
         )}
@@ -281,7 +282,6 @@ const CatalogPage: React.FC = () => {
       <GalleryItem key={plugin.name}>
         <Card
           isClickable
-          isSelectable
           onClick={() => setSelectedPlugin(plugin.name)}
         >
           <CardHeader>
@@ -295,13 +295,13 @@ const CatalogPage: React.FC = () => {
                   {plugin.displayName ?? plugin.name}
                 </CardTitle>
               </FlexItem>
-              <FlexItem>
-                {isInstalled && (
+              {isInstalled && (
+                <FlexItem>
                   <Label color="green" icon={<CheckCircleIcon />} isCompact>
                     Installed
                   </Label>
-                )}
-              </FlexItem>
+                </FlexItem>
+              )}
             </Flex>
           </CardHeader>
           <CardBody>
