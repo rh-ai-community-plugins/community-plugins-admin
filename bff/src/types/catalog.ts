@@ -59,6 +59,21 @@ export interface PluginMetadata {
   support?: PluginSupport;
 }
 
+export interface CatalogPluginInstall {
+  method: 'automatic' | 'assisted' | 'manual';
+  helm?: {
+    chartPath?: string;
+    registry?: string;
+  };
+  prerequisites?: string[];
+  instructions?: string;
+}
+
+export interface CatalogPluginRbac {
+  requiredRoles?: string[];
+  clusterRoles?: boolean;
+}
+
 export interface CatalogPlugin {
   name: string;
   repo: string;
@@ -77,7 +92,7 @@ export interface CatalogPlugin {
   deploymentModel?: 'cluster-shared' | 'per-project' | 'both';
   image?: PluginImage;
   bffImage?: PluginImage;
-  install?: PluginInstall;
-  rbac?: PluginRbac;
+  install?: CatalogPluginInstall;
+  rbac?: CatalogPluginRbac;
   support?: PluginSupport;
 }

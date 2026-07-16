@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getRegistryPlugins, clearCharterCache } from '../services/charterClient';
 import { getAllPluginMetadata, clearPluginCache } from '../services/pluginMetadataClient';
-import { CatalogPlugin, PluginMetadata } from '../types/catalog';
+import { CatalogPlugin, CatalogPluginInstall, CatalogPluginRbac, PluginMetadata } from '../types/catalog';
 
 const router = Router();
 
@@ -20,6 +20,26 @@ function buildCatalogPlugin(
 
   if (!metadata) return base;
 
+  let install: CatalogPluginInstall | undefined;
+  if (metadata.install) {
+    install = {
+      method: metadata.install.method,
+      helm: metadata.install.helm
+        ? { chartPath: metadata.install.helm.chart_path, registry: metadata.install.helm.registry }
+        : undefined,
+      prerequisites: metadata.install.prerequisites,
+      instructions: metadata.install.instructions,
+    };
+  }
+
+  let rbac: CatalogPluginRbac | undefined;
+  if (metadata.rbac) {
+    rbac = {
+      requiredRoles: metadata.rbac.required_roles,
+      clusterRoles: metadata.rbac.cluster_roles,
+    };
+  }
+
   return {
     ...base,
     displayName: metadata.displayName,
@@ -35,8 +55,8 @@ function buildCatalogPlugin(
     deploymentModel: metadata.deployment_model,
     image: metadata.image,
     bffImage: metadata.bff_image,
-    install: metadata.install,
-    rbac: metadata.rbac,
+    install,
+    rbac,
     support: metadata.support,
   };
 }
