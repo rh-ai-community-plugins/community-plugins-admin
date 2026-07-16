@@ -12,12 +12,14 @@ function createMockResponse(statusCode: number, body: string | Buffer, headers: 
     statusCode: number;
     headers: Record<string, string>;
     destroy: jest.Mock;
+    resume: jest.Mock;
   };
   res.statusCode = statusCode;
   res.headers = headers;
   res.destroy = jest.fn(() => {
     process.nextTick(() => res.emit('error', new Error('destroyed')));
   });
+  res.resume = jest.fn();
   process.nextTick(() => {
     const buf = typeof body === 'string' ? Buffer.from(body) : body;
     if (buf.length > 0) {
@@ -108,6 +110,63 @@ describe('fetchUrl', () => {
     });
 
     await expect(fetchUrl('https://example.com/start')).rejects.toThrow('Too many redirects');
+  });
+
+  it('drains redirect response stream before following redirect', async () => {
+    const redirectRes = createMockResponse(301, '', { location: 'https://example.com/redirected' });
+    let callCount = 0;
+    mockedHttps.get.mockImplementation((_url: any, _opts: any, callback: any) => {
+      if (typeof _opts === 'function') {
+        callback = _opts;
+      }
+      callCount++;
+      if (callCount === 1) {
+        callback(redirectRes);
+      } else {
+        callback(createMockResponse(200, 'redirected content'));
+      }
+      const req = new EventEmitter() as any;
+      req.end = jest.fn();
+      req.destroy = jest.fn();
+      return req;
+    });
+
+    await fetchUrl('https://example.com/original');
+    expect(redirectRes.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('drains response stream when too many redirects', async () => {
+    const loopRes = createMockResponse(301, '', { location: 'https://example.com/loop' });
+    mockedHttps.get.mockImplementation((_url: any, _opts: any, callback: any) => {
+      if (typeof _opts === 'function') {
+        callback = _opts;
+      }
+      callback(loopRes);
+      const req = new EventEmitter() as any;
+      req.end = jest.fn();
+      req.destroy = jest.fn();
+      return req;
+    });
+
+    await expect(fetchUrl('https://example.com/start', 0)).rejects.toThrow('Too many redirects');
+    expect(loopRes.resume).toHaveBeenCalledTimes(1);
+  });
+
+  it('drains response stream on non-2xx error', async () => {
+    const errorRes = createMockResponse(404, 'Not Found');
+    mockedHttps.get.mockImplementation((_url: any, _opts: any, callback: any) => {
+      if (typeof _opts === 'function') {
+        callback = _opts;
+      }
+      callback(errorRes);
+      const req = new EventEmitter() as any;
+      req.end = jest.fn();
+      req.destroy = jest.fn();
+      return req;
+    });
+
+    await expect(fetchUrl('https://example.com/missing')).rejects.toThrow('HTTP 404');
+    expect(errorRes.resume).toHaveBeenCalledTimes(1);
   });
 
   it('rejects on timeout', async () => {

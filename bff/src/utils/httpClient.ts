@@ -12,13 +12,16 @@ export function fetchUrl(url: string, redirectsRemaining = MAX_REDIRECTS): Promi
       .get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
         if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           if (redirectsRemaining <= 0) {
+            res.resume();
             reject(new Error(`Too many redirects fetching ${url}`));
             return;
           }
+          res.resume();
           fetchUrl(res.headers.location, redirectsRemaining - 1).then(resolve, reject);
           return;
         }
         if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
+          res.resume();
           reject(new Error(`HTTP ${res.statusCode} fetching ${url}`));
           return;
         }
