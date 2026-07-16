@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getRegistryPlugins } from '../services/charterClient';
-import { getAllPluginMetadata, clearPluginCache } from '../services/pluginMetadataClient';
+import { getAllPluginMetadata, getPluginMetadata, clearPluginCache } from '../services/pluginMetadataClient';
 import { CatalogPlugin, CatalogPluginInstall, CatalogPluginRbac, PluginMetadata, RegistryPlugin } from '../types/catalog';
 
 const router = Router();
@@ -94,8 +94,7 @@ router.get('/:name', async (req: Request, res: Response) => {
       return;
     }
 
-    const metadataMap = await getAllPluginMetadata([registryEntry]);
-    const metadata = metadataMap.get(name) ?? null;
+    const metadata = await getPluginMetadata(registryEntry);
     const plugin = buildCatalogPlugin(registryEntry, metadata);
 
     res.json(plugin);

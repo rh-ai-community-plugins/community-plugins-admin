@@ -1,6 +1,6 @@
 import http from 'http';
 import { getRegistryPlugins } from '../src/services/charterClient';
-import { getAllPluginMetadata, clearPluginCache } from '../src/services/pluginMetadataClient';
+import { getAllPluginMetadata, getPluginMetadata, clearPluginCache } from '../src/services/pluginMetadataClient';
 import { RegistryPlugin, PluginMetadata } from '../src/types/catalog';
 
 jest.mock('../src/services/charterClient');
@@ -8,6 +8,7 @@ jest.mock('../src/services/pluginMetadataClient');
 
 const mockedGetRegistryPlugins = jest.mocked(getRegistryPlugins);
 const mockedGetAllPluginMetadata = jest.mocked(getAllPluginMetadata);
+const mockedGetPluginMetadata = jest.mocked(getPluginMetadata);
 const mockedClearPluginCache = jest.mocked(clearPluginCache);
 
 const REGISTRY_PLUGINS: RegistryPlugin[] = [
@@ -141,9 +142,7 @@ describe('GET /api/catalog/:name', () => {
 
   it('returns a single plugin with metadata', async () => {
     mockedGetRegistryPlugins.mockResolvedValue(REGISTRY_PLUGINS);
-    const metadataMap = new Map<string, PluginMetadata | null>();
-    metadataMap.set('brewet', BREWET_METADATA);
-    mockedGetAllPluginMetadata.mockResolvedValue(metadataMap);
+    mockedGetPluginMetadata.mockResolvedValue(BREWET_METADATA);
 
     const res = await request('/api/catalog/brewet');
 
@@ -155,9 +154,7 @@ describe('GET /api/catalog/:name', () => {
 
   it('returns a plugin without metadata', async () => {
     mockedGetRegistryPlugins.mockResolvedValue(REGISTRY_PLUGINS);
-    const metadataMap = new Map<string, PluginMetadata | null>();
-    metadataMap.set('sardeenz', null);
-    mockedGetAllPluginMetadata.mockResolvedValue(metadataMap);
+    mockedGetPluginMetadata.mockResolvedValue(null);
 
     const res = await request('/api/catalog/sardeenz');
 
