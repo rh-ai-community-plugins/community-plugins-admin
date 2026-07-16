@@ -133,6 +133,51 @@ describe('pluginMetadataClient', () => {
         'https://raw.githubusercontent.com/rh-aiservices-bu/odh-tec/main/plugin.yaml',
       );
     });
+
+    it('uses custom default_branch when specified', async () => {
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
+
+      const pluginWithMasterBranch: RegistryPlugin = {
+        ...REGISTRY_PLUGIN,
+        default_branch: 'master',
+      };
+
+      await getPluginMetadata(pluginWithMasterBranch);
+
+      expect(mockedFetchUrl).toHaveBeenCalledWith(
+        'https://raw.githubusercontent.com/rh-aiservices-bu/odh-tec/master/plugin.yaml',
+      );
+    });
+
+    it('falls back to main when default_branch is not set', async () => {
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
+
+      const pluginNoBranch: RegistryPlugin = {
+        ...REGISTRY_PLUGIN,
+      };
+      delete pluginNoBranch.default_branch;
+
+      await getPluginMetadata(pluginNoBranch);
+
+      expect(mockedFetchUrl).toHaveBeenCalledWith(
+        'https://raw.githubusercontent.com/rh-aiservices-bu/odh-tec/main/plugin.yaml',
+      );
+    });
+
+    it('uses a non-standard branch name correctly', async () => {
+      mockedFetchUrl.mockResolvedValue(SAMPLE_PLUGIN_YAML);
+
+      const pluginWithCustomBranch: RegistryPlugin = {
+        ...REGISTRY_PLUGIN,
+        default_branch: 'develop',
+      };
+
+      await getPluginMetadata(pluginWithCustomBranch);
+
+      expect(mockedFetchUrl).toHaveBeenCalledWith(
+        'https://raw.githubusercontent.com/rh-aiservices-bu/odh-tec/develop/plugin.yaml',
+      );
+    });
   });
 
   describe('getAllPluginMetadata', () => {
