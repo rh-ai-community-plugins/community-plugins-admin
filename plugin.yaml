@@ -1,0 +1,67 @@
+# --- Plugin identity (required) ---
+name: community-plugins-admin                    # [PLUGIN-SPECIFIC] unique plugin identifier (kebab-case)
+displayName: Community Plugins Admin             # [PLUGIN-SPECIFIC] human-readable name
+description: Discover, install, upgrade, and manage community plugins for the RHOAI Dashboard
+version: 0.1.0
+
+# --- Maintainer (required) ---
+maintainer:                          # [PLUGIN-SPECIFIC]
+  name: Your Name                    # [PLUGIN-SPECIFIC] replace with maintainer's name
+  github: your-github-handle        # [PLUGIN-SPECIFIC] replace with maintainer's GitHub handle
+
+# --- RHOAI compatibility (required) ---
+rhoai_compatibility:                 # [PLUGIN-SPECIFIC]
+  min_version: "3.3.0"
+  tested_versions: ["3.3.0", "3.4.2"]
+
+# --- Deployment (required) ---
+deployment_model: cluster-shared     # per-project | cluster-shared | both
+
+image:                               # [PLUGIN-SPECIFIC]
+  repository: quay.io/OWNER/community-plugins-admin
+  tag: "0.1.0"
+
+bff_image:                           # [PLUGIN-SPECIFIC] (optional — only if using BFF pattern)
+  repository: quay.io/OWNER/community-plugins-admin-bff
+  tag: "0.1.0"
+
+# --- Installation (required) ---
+install:
+  method: automatic                  # automatic | assisted | manual
+  helm:
+    chart_path: chart/
+    registry: oci://quay.io/OWNER/community-plugins-admin-chart  # [PLUGIN-SPECIFIC]
+  prerequisites: []
+  instructions: https://github.com/rh-ai-community-plugins/community-plugins-admin/blob/main/docs/deployment  # [PLUGIN-SPECIFIC]
+
+# --- Dashboard integration (required) ---
+remote:
+  type: module-federation
+  spec:
+    name: communityPluginsAdmin                 # [PLUGIN-SPECIFIC] Module Federation container name (camelCase)
+    scope: communityPluginsAdmin                # [PLUGIN-SPECIFIC] must match name above
+    # [PLUGIN-SPECIFIC] Update this URL to point to your deployed OpenShift route.
+    # The URL is cluster-specific and depends on the route created by the Helm chart or Ingress.
+    # Example: https://community-plugins-admin-mynamespace.apps.mycluster.example.com/remoteEntry.js
+    remoteEntry: https://<your-openshift-route>/remoteEntry.js  # [PLUGIN-SPECIFIC]
+    paths:
+      - type: route
+        path: /community-plugins-admin           # [PLUGIN-SPECIFIC] must match route prefix in extensions.ts
+        extensions:
+          - communityPluginsAdmin/extensions     # [PLUGIN-SPECIFIC] {scope}/extensions
+      - type: icon
+        path: communityPluginsAdmin/Icon         # [PLUGIN-SPECIFIC] {scope}/Icon
+
+# --- RBAC (required) ---
+# NOTE: Admins who install, upgrade, or remove plugins need permissions to
+# modify the MODULE_FEDERATION_CONFIG env var on the rhods-dashboard deployment
+# and manage plugin namespaces. Non-admin users can browse the catalog read-only.
+rbac:
+  required_roles: []
+  cluster_roles: false
+
+# --- Support (optional) ---
+support:
+  repo: https://github.com/rh-ai-community-plugins/community-plugins-admin   # [PLUGIN-SPECIFIC]
+  docs: https://github.com/rh-ai-community-plugins/community-plugins-admin/tree/main/docs
+  issues: https://github.com/rh-ai-community-plugins/community-plugins-admin/issues
