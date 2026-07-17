@@ -2,11 +2,13 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import CatalogPage from '../CatalogPage';
 import { useCatalog } from '~/app/hooks/useCatalog';
 import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
+import { useHelmReleasedPlugins } from '~/app/hooks/useHelmReleasedPlugins';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
 import { CatalogPlugin } from '~/app/types/catalog';
 
 jest.mock('~/app/hooks/useCatalog');
 jest.mock('~/app/hooks/useInstalledPluginNames');
+jest.mock('~/app/hooks/useHelmReleasedPlugins');
 jest.mock('~/app/hooks/useCurrentUser');
 jest.mock('~/app/components/PluginDetailModal', () => {
   const MockModal = ({ pluginName }: { pluginName: string | null; isAdmin: boolean }) =>
@@ -18,6 +20,9 @@ jest.mock('~/app/components/PluginDetailModal', () => {
 const mockUseCatalog = useCatalog as jest.MockedFunction<typeof useCatalog>;
 const mockUseInstalledPluginNames = useInstalledPluginNames as jest.MockedFunction<
   typeof useInstalledPluginNames
+>;
+const mockUseHelmReleasedPlugins = useHelmReleasedPlugins as jest.MockedFunction<
+  typeof useHelmReleasedPlugins
 >;
 const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
 
@@ -71,10 +76,18 @@ const defaultInstalledReturn = {
   refetch: jest.fn(),
 };
 
+const defaultHelmReturn = {
+  helmInstalledNames: new Set(['plugin-alpha']),
+  loading: false,
+  error: null,
+  refetch: jest.fn(),
+};
+
 beforeEach(() => {
   jest.resetAllMocks();
   mockUseCatalog.mockReturnValue(defaultCatalogReturn);
   mockUseInstalledPluginNames.mockReturnValue(defaultInstalledReturn);
+  mockUseHelmReleasedPlugins.mockReturnValue(defaultHelmReturn);
   mockUseCurrentUser.mockReturnValue({ user: null, loading: false, error: null });
 });
 
@@ -105,6 +118,17 @@ describe('CatalogPage', () => {
     mockUseInstalledPluginNames.mockReturnValue({
       ...defaultInstalledReturn,
       installedNames: new Set(),
+      loading: true,
+    });
+    render(<CatalogPage />);
+    expect(screen.getByLabelText('Loading catalog')).toBeInTheDocument();
+    expect(screen.queryByText('Plugin Alpha')).not.toBeInTheDocument();
+  });
+
+  it('shows loading spinner when helmInstalledNames is still loading', () => {
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(),
       loading: true,
     });
     render(<CatalogPage />);
@@ -301,7 +325,20 @@ describe('CatalogPage', () => {
     expect(
       screen.getByText('Unable to determine installed plugin status'),
     ).toBeInTheDocument();
-    expect(screen.getByText('Install badges may be incomplete.')).toBeInTheDocument();
+    expect(screen.getByText('Install and disabled badges may be incomplete.')).toBeInTheDocument();
+  });
+
+  it('shows warning alert when helmError is set', () => {
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(),
+      error: 'Failed to fetch Helm releases: 500',
+    });
+    render(<CatalogPage />);
+    expect(
+      screen.getByText('Unable to determine installed plugin status'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Install and disabled badges may be incomplete.')).toBeInTheDocument();
   });
 
   it('still renders the catalog when installedError is set — warning is non-blocking', () => {
@@ -321,5 +358,51 @@ describe('CatalogPage', () => {
     expect(
       screen.queryByText('Unable to determine installed plugin status'),
     ).not.toBeInTheDocument();
+  });
+
+  it('shows Disabled badge on disabled plugins (helm installed, not enabled)', () => {
+    // plugin-beta is helm-installed but not in installedNames → disabled
+    mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
+      installedNames: new Set(['plugin-alpha']),
+    });
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(['plugin-alpha', 'plugin-beta']),
+    });
+    render(<CatalogPage />);
+
+    const betaCard = screen.getByText('Plugin Beta').closest('.pf-v6-c-card');
+    expect(betaCard).toBeTruthy();
+    expect(within(betaCard! as HTMLElement).getByText('Disabled')).toBeInTheDocument();
+  });
+
+  it('does not show Disabled badge on enabled installed plugins', () => {
+    mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
+      installedNames: new Set(['plugin-alpha']),
+    });
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(['plugin-alpha']),
+    });
+    render(<CatalogPage />);
+
+    const alphaCard = screen.getByText('Plugin Alpha').closest('.pf-v6-c-card');
+    expect(alphaCard).toBeTruthy();
+    expect(within(alphaCard! as HTMLElement).queryByText('Disabled')).not.toBeInTheDocument();
+    expect(within(alphaCard! as HTMLElement).getByText('Installed')).toBeInTheDocument();
+  });
+
+  it('does not show Disabled badge on plugins not in helmInstalledNames', () => {
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set([]),
+    });
+    render(<CatalogPage />);
+
+    const betaCard = screen.getByText('Plugin Beta').closest('.pf-v6-c-card');
+    expect(betaCard).toBeTruthy();
+    expect(within(betaCard! as HTMLElement).queryByText('Disabled')).not.toBeInTheDocument();
   });
 });

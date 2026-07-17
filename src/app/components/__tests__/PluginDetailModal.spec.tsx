@@ -422,4 +422,106 @@ describe('PluginDetailModal', () => {
       expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument();
     });
   });
+
+  describe('disabled plugin state', () => {
+    const helmInstalledNames = new Set(['test-plugin']);
+
+    it('shows Disabled badge in header when plugin is disabled', () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
+      render(
+        <PluginDetailModal
+          pluginName="test-plugin"
+          isAdmin={true}
+          installedNames={emptyNames}
+          installedLoading={false}
+          helmInstalledNames={helmInstalledNames}
+          onClose={jest.fn()}
+        />,
+      );
+      expect(screen.getByText('Disabled')).toBeInTheDocument();
+    });
+
+    it('shows Enable and Remove buttons for admin when plugin is disabled', () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
+      render(
+        <PluginDetailModal
+          pluginName="test-plugin"
+          isAdmin={true}
+          installedNames={emptyNames}
+          installedLoading={false}
+          helmInstalledNames={helmInstalledNames}
+          onClose={jest.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: 'Enable' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Disable' })).not.toBeInTheDocument();
+    });
+
+    it('does not show Enable button for non-admin when plugin is disabled', () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
+      render(
+        <PluginDetailModal
+          pluginName="test-plugin"
+          isAdmin={false}
+          installedNames={emptyNames}
+          installedLoading={false}
+          helmInstalledNames={helmInstalledNames}
+          onClose={jest.fn()}
+        />,
+      );
+      expect(screen.queryByRole('button', { name: 'Enable' })).not.toBeInTheDocument();
+    });
+
+    it('calls lifecycle.enable when Enable button is clicked', async () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
+      render(
+        <PluginDetailModal
+          pluginName="test-plugin"
+          isAdmin={true}
+          installedNames={emptyNames}
+          installedLoading={false}
+          helmInstalledNames={helmInstalledNames}
+          onClose={jest.fn()}
+        />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Enable' }));
+      expect(mockLifecycle.enable).toHaveBeenCalledWith('test-plugin');
+    });
+
+    it('does not show Disabled badge when helmInstalledNames is not provided', () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
+      render(
+        <PluginDetailModal
+          pluginName="test-plugin"
+          isAdmin={true}
+          installedNames={emptyNames}
+          installedLoading={false}
+          onClose={jest.fn()}
+        />,
+      );
+      expect(screen.queryByText('Disabled')).not.toBeInTheDocument();
+    });
+
+    it('does not treat installed plugins as disabled even if in helmInstalledNames', () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
+      render(
+        <PluginDetailModal
+          pluginName="test-plugin"
+          isAdmin={true}
+          installedNames={new Set(['test-plugin'])}
+          installedLoading={false}
+          helmInstalledNames={helmInstalledNames}
+          onClose={jest.fn()}
+        />,
+      );
+      // Should show Installed state, not Disabled
+      expect(screen.getByText('Installed')).toBeInTheDocument();
+      expect(screen.queryByText('Disabled')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Upgrade' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Enable' })).not.toBeInTheDocument();
+    });
+  });
 });

@@ -6,11 +6,28 @@ import {
   enablePlugin,
   disablePlugin,
 } from '../services/lifecycleService';
-import { validateHelmValues } from '../services/helmService';
+import { validateHelmValues, helmListAllNamespaces } from '../services/helmService';
 
 const router = Router();
 
 const PLUGIN_NAME_PATTERN = /^[a-z][a-z0-9-]{0,62}[a-z0-9]$/;
+
+router.get('/', async (req: Request, res: Response) => {
+  const token = extractToken(req);
+  if (!token) {
+    res.status(401).json({ error: 'Authorization token required' });
+    return;
+  }
+
+  try {
+    const releases = await helmListAllNamespaces(token);
+    res.json({ releases });
+  } catch (err) {
+    console.error('Failed to list Helm releases:', (err as Error).message);
+    res.status(500).json({ error: 'Failed to list Helm releases' });
+  }
+});
+
 const K8S_NAMESPACE_PATTERN = /^[a-z][a-z0-9-]{0,62}[a-z0-9]$/;
 
 const PROTECTED_NAMESPACES = new Set([

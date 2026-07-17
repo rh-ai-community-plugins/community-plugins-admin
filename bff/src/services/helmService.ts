@@ -7,6 +7,12 @@ import { getK8sBaseUrl } from '../utils/k8sClient';
 const HELM_TIMEOUT_MS = 120_000;
 const HELM_BIN = '/usr/local/bin/helm';
 
+export interface HelmRelease {
+  name: string;
+  namespace: string;
+  status: string;
+}
+
 const HELM_SET_KEY_PATTERN = /^[a-zA-Z0-9._-]+$/;
 const HELM_SET_VALUE_PATTERN = /^[a-zA-Z0-9._:/@=+\- ]*$/;
 
@@ -209,4 +215,10 @@ export async function discoverReleaseNamespace(
   }
   const match = releases.find((r) => r.name === releaseName);
   return match?.namespace ?? null;
+}
+
+export async function helmListAllNamespaces(token: string): Promise<HelmRelease[]> {
+  const args = ['list', '--all-namespaces', '--output', 'json'];
+  const result = await runHelm(args, token);
+  return JSON.parse(result.stdout) as HelmRelease[];
 }
