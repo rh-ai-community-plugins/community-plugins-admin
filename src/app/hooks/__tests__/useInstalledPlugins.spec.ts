@@ -57,6 +57,7 @@ const defaultInstalledReturn = {
   ],
   loading: false,
   error: null,
+  refetch: jest.fn(),
 };
 
 const defaultCatalogReturn = {
@@ -259,17 +260,23 @@ describe('useInstalledPlugins', () => {
     expect(result.current.catalogError).toBe('Catalog fetch failed');
   });
 
-  it('exposes refetch from catalog', () => {
-    const refetchFn = jest.fn();
+  it('refetch calls both namesRefetch and catalogRefetch', () => {
+    const namesRefetchFn = jest.fn();
+    const catalogRefetchFn = jest.fn();
+    mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
+      refetch: namesRefetchFn,
+    });
     mockUseCatalog.mockReturnValue({
       ...defaultCatalogReturn,
-      refetch: refetchFn,
+      refetch: catalogRefetchFn,
     });
 
     const { result } = renderHook(() => useInstalledPlugins());
     result.current.refetch();
 
-    expect(refetchFn).toHaveBeenCalledTimes(1);
+    expect(namesRefetchFn).toHaveBeenCalledTimes(1);
+    expect(catalogRefetchFn).toHaveBeenCalledTimes(1);
   });
 
   it('does not run health checks when entries are empty', () => {

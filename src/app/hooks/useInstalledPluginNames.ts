@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 import { ModuleFederationEntry } from '~/app/types/installed';
 
@@ -13,14 +13,27 @@ const DASHBOARD_DEPLOYMENT = 'rhods-dashboard';
 export const scopeToKebab = (scope: string): string =>
   scope.replace(/([A-Z])/g, '-$1').toLowerCase();
 
+function isModuleFederationEntry(value: unknown): value is ModuleFederationEntry {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    typeof (value as Record<string, unknown>).scope === 'string' &&
+    typeof (value as Record<string, unknown>).module === 'string' &&
+    typeof (value as Record<string, unknown>).remoteEntry === 'string'
+  );
+}
+
 export function useInstalledPluginNames() {
   const [installedNames, setInstalledNames] = useState<Set<string>>(new Set());
   const [entries, setEntries] = useState<ModuleFederationEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fetchCount, setFetchCount] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    setLoading(true);
+    setError(null);
 
     fetch(
       `/api/k8s/apis/apps/v1/namespaces/${DASHBOARD_NAMESPACE}/deployments/${DASHBOARD_DEPLOYMENT}`,
@@ -50,7 +63,7 @@ export function useInstalledPluginNames() {
                   `MODULE_FEDERATION_CONFIG is not an array (got ${typeof parsed})`,
                 );
               }
-              const mfEntries = parsed as ModuleFederationEntry[];
+              const mfEntries = parsed.filter(isModuleFederationEntry);
               setEntries(mfEntries);
               setInstalledNames(new Set(mfEntries.map((e) => scopeToKebab(e.scope))));
             } catch (parseErr) {
@@ -79,7 +92,11 @@ export function useInstalledPluginNames() {
       });
 
     return () => controller.abort();
+  }, [fetchCount]);
+
+  const refetch = useCallback(() => {
+    setFetchCount((c) => c + 1);
   }, []);
 
-  return { installedNames, entries, loading, error };
+  return { installedNames, entries, loading, error, refetch };
 }

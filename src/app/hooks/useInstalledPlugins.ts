@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useInstalledPluginNames, scopeToKebab } from '~/app/hooks/useInstalledPluginNames';
 import { useCatalog } from '~/app/hooks/useCatalog';
 import { InstalledPlugin, ModuleFederationEntry, PluginHealthStatus } from '~/app/types/installed';
@@ -65,6 +65,7 @@ export function useInstalledPlugins() {
     entries,
     loading: namesLoading,
     error: namesError,
+    refetch: namesRefetch,
   } = useInstalledPluginNames();
 
   const {
@@ -88,6 +89,7 @@ export function useInstalledPlugins() {
     const currentEntries = entriesRef.current;
     if (namesLoading || currentEntries.length === 0) return;
 
+    let cancelled = false;
     const controller = new AbortController();
     setHealthLoading(true);
 
@@ -103,6 +105,7 @@ export function useInstalledPlugins() {
 
     Promise.all(checks)
       .then((results) => {
+        if (cancelled) return;
         const map = new Map<string, { healthStatus: PluginHealthStatus; availableReplicas?: number; desiredReplicas?: number }>();
         for (const r of results) {
           map.set(r.name, {
@@ -115,10 +118,11 @@ export function useInstalledPlugins() {
         setHealthLoading(false);
       })
       .catch(() => {
+        if (cancelled) return;
         setHealthLoading(false);
       });
 
-    return () => controller.abort();
+    return () => { cancelled = true; controller.abort(); };
   }, [namesLoading, entriesKey]);
 
   const installedPlugins: InstalledPlugin[] = useMemo(() => {
@@ -146,6 +150,11 @@ export function useInstalledPlugins() {
   const loading = namesLoading || catalogLoading;
   const error = namesError ?? catalogError ?? null;
 
+  const refetch = useCallback(() => {
+    namesRefetch();
+    catalogRefetch();
+  }, [namesRefetch, catalogRefetch]);
+
   return {
     plugins: installedPlugins,
     loading,
@@ -153,6 +162,6 @@ export function useInstalledPlugins() {
     isRefetching: catalogRefetching,
     error,
     catalogError,
-    refetch: catalogRefetch,
+    refetch,
   };
 }
