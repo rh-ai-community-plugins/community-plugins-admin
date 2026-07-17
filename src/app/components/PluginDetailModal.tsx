@@ -29,6 +29,7 @@ import {
   maintenanceLabelColor,
   maintenanceDisplayText,
   statusLabelColor,
+  deploymentModelLabel,
 } from '~/app/utils/maintenance';
 
 interface PluginDetailModalProps {
@@ -45,19 +46,6 @@ const isSafeUrl = (url: string): boolean => {
     return parsed.protocol === 'https:' || parsed.protocol === 'http:';
   } catch {
     return false;
-  }
-};
-
-const deploymentModelLabel = (model: string): string => {
-  switch (model) {
-    case 'cluster-shared':
-      return 'Cluster-shared';
-    case 'per-project':
-      return 'Per-project';
-    case 'both':
-      return 'Cluster-shared / Per-project';
-    default:
-      return model;
   }
 };
 

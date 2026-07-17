@@ -6,3 +6,16 @@ export const maintenanceDisplayText = (maintenance: string): string =>
 
 export const statusLabelColor = (status: string): 'blue' | 'green' =>
   status === 'stable' ? 'green' : 'blue';
+
+export const deploymentModelLabel = (model: string): string => {
+  switch (model) {
+    case 'cluster-shared':
+      return 'Cluster-shared';
+    case 'per-project':
+      return 'Per-project';
+    case 'both':
+      return 'Cluster-shared / Per-project';
+    default:
+      return model;
+  }
+};
