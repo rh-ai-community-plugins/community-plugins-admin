@@ -56,6 +56,8 @@ const InstalledPage: React.FC = () => {
   const { user } = useCurrentUser();
   const isAdmin = user?.isAdmin ?? false;
 
+  const installedNames = useMemo(() => new Set(plugins.map((p) => p.name)), [plugins]);
+
   const [searchText, setSearchText] = useState('');
   const [selectedPlugin, setSelectedPlugin] = useState<string | null>(null);
 
@@ -257,6 +259,9 @@ const InstalledPage: React.FC = () => {
       </PageSection>
       <PluginDetailModal
         pluginName={selectedPlugin}
+        isAdmin={isAdmin}
+        installedNames={installedNames}
+        installedLoading={loading}
         onClose={() => setSelectedPlugin(null)}
       />
     </>

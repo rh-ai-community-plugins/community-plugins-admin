@@ -6,6 +6,12 @@ import { InstalledPlugin } from '~/app/types/installed';
 
 jest.mock('~/app/hooks/useInstalledPlugins');
 jest.mock('~/app/hooks/useCurrentUser');
+jest.mock('~/app/components/PluginDetailModal', () => {
+  const MockModal = ({ pluginName }: { pluginName: string | null; isAdmin: boolean }) =>
+    pluginName ? <div data-testid="plugin-detail-modal">{pluginName}</div> : null;
+  MockModal.displayName = 'MockPluginDetailModal';
+  return { __esModule: true, default: MockModal };
+});
 
 const mockUseInstalledPlugins = useInstalledPlugins as jest.MockedFunction<typeof useInstalledPlugins>;
 const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
@@ -309,6 +315,6 @@ describe('InstalledPage', () => {
     render(<InstalledPage />);
     const row = screen.getByText('Community Plugins Admin').closest('tr');
     fireEvent.click(row!);
-    expect(screen.getByText('community-plugins-admin')).toBeInTheDocument();
+    expect(screen.getByTestId('plugin-detail-modal')).toHaveTextContent('community-plugins-admin');
   });
 });
