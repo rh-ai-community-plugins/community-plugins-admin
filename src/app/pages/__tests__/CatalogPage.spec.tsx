@@ -78,6 +78,7 @@ const defaultInstalledReturn = {
 
 const defaultHelmReturn = {
   helmInstalledNames: new Set(['plugin-alpha']),
+  helmVersionMap: new Map<string, string>(),
   loading: false,
   error: null,
   refetch: jest.fn(),
@@ -404,5 +405,73 @@ describe('CatalogPage', () => {
     const betaCard = screen.getByText('Plugin Beta').closest('.pf-v6-c-card');
     expect(betaCard).toBeTruthy();
     expect(within(betaCard! as HTMLElement).queryByText('Disabled')).not.toBeInTheDocument();
+  });
+
+  it('shows update available badge when installed version differs from catalog version', () => {
+    // plugin-alpha catalog version is '2.0.0', installed version is '1.0.0'
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(['plugin-alpha']),
+      helmVersionMap: new Map([['plugin-alpha', '1.0.0']]),
+    });
+    render(<CatalogPage />);
+
+    const alphaCard = screen.getByText('Plugin Alpha').closest('.pf-v6-c-card');
+    expect(alphaCard).toBeTruthy();
+    expect(
+      within(alphaCard! as HTMLElement).getByText('Update available: 1.0.0 → 2.0.0'),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show update available badge when versions match', () => {
+    // plugin-alpha catalog version is '2.0.0', installed version also '2.0.0'
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(['plugin-alpha']),
+      helmVersionMap: new Map([['plugin-alpha', '2.0.0']]),
+    });
+    render(<CatalogPage />);
+
+    const alphaCard = screen.getByText('Plugin Alpha').closest('.pf-v6-c-card');
+    expect(alphaCard).toBeTruthy();
+    expect(
+      within(alphaCard! as HTMLElement).queryByText(/Update available/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not show update available badge when helmVersionMap has no entry for the plugin', () => {
+    // plugin-alpha is installed but no version info in helmVersionMap
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(['plugin-alpha']),
+      helmVersionMap: new Map(),
+    });
+    render(<CatalogPage />);
+
+    const alphaCard = screen.getByText('Plugin Alpha').closest('.pf-v6-c-card');
+    expect(alphaCard).toBeTruthy();
+    expect(
+      within(alphaCard! as HTMLElement).queryByText(/Update available/),
+    ).not.toBeInTheDocument();
+  });
+
+  it('does not show update available badge when catalog plugin has no version', () => {
+    // plugin-gamma has no version in catalog; it would be installed here to test
+    mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
+      installedNames: new Set(['plugin-gamma']),
+    });
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      helmInstalledNames: new Set(['plugin-gamma']),
+      helmVersionMap: new Map([['plugin-gamma', '1.0.0']]),
+    });
+    render(<CatalogPage />);
+
+    const gammaCard = screen.getByText('plugin-gamma').closest('.pf-v6-c-card');
+    expect(gammaCard).toBeTruthy();
+    expect(
+      within(gammaCard! as HTMLElement).queryByText(/Update available/),
+    ).not.toBeInTheDocument();
   });
 });

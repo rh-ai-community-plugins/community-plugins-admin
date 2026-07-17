@@ -4,7 +4,7 @@ import { useHelmReleasedPlugins } from '../useHelmReleasedPlugins';
 const API_URL = '/community-plugins-admin/api/plugins';
 
 const mockReleases = [
-  { name: 'plugin-alpha', namespace: 'plugin-alpha', status: 'deployed' },
+  { name: 'plugin-alpha', namespace: 'plugin-alpha', status: 'deployed', app_version: '1.0.0' },
   { name: 'plugin-beta', namespace: 'plugin-beta', status: 'deployed' },
 ];
 
@@ -44,6 +44,38 @@ describe('useHelmReleasedPlugins', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('returns helmVersionMap with app_version for releases that have it', async () => {
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ releases: mockReleases }),
+    });
+
+    const { result } = renderHook(() => useHelmReleasedPlugins());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    // plugin-alpha has app_version '1.0.0'
+    expect(result.current.helmVersionMap.get('plugin-alpha')).toBe('1.0.0');
+    // plugin-beta has no app_version
+    expect(result.current.helmVersionMap.has('plugin-beta')).toBe(false);
+    // unknown plugin not in map
+    expect(result.current.helmVersionMap.has('plugin-gamma')).toBe(false);
+  });
+
+  it('returns empty helmVersionMap when no releases have app_version', async () => {
+    const releasesWithoutVersion = [
+      { name: 'plugin-alpha', namespace: 'plugin-alpha', status: 'deployed' },
+    ];
+    (global.fetch as jest.Mock).mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ releases: releasesWithoutVersion }),
+    });
+
+    const { result } = renderHook(() => useHelmReleasedPlugins());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.helmVersionMap.size).toBe(0);
+  });
+
   it('starts with loading=true and empty Set', () => {
     (global.fetch as jest.Mock).mockReturnValueOnce(new Promise(() => {}));
 
@@ -63,6 +95,7 @@ describe('useHelmReleasedPlugins', () => {
 
     expect(result.current.error).toMatch(/500/);
     expect(result.current.helmInstalledNames.size).toBe(0);
+    expect(result.current.helmVersionMap.size).toBe(0);
   });
 
   it('sets error and empty Set on network failure', async () => {
@@ -73,6 +106,7 @@ describe('useHelmReleasedPlugins', () => {
 
     expect(result.current.error).toBe('Network failure');
     expect(result.current.helmInstalledNames.size).toBe(0);
+    expect(result.current.helmVersionMap.size).toBe(0);
   });
 
   it('refetch triggers a new fetch', async () => {

@@ -11,6 +11,7 @@ export interface HelmRelease {
   name: string;
   namespace: string;
   status: string;
+  app_version?: string;
 }
 
 const HELM_SET_KEY_PATTERN = /^[a-zA-Z0-9._-]+$/;

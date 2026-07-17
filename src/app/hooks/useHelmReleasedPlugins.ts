@@ -6,6 +6,7 @@ interface HelmRelease {
   name: string;
   namespace: string;
   status: string;
+  app_version?: string;
 }
 
 interface HelmReleasesResponse {
@@ -14,6 +15,7 @@ interface HelmReleasesResponse {
 
 export function useHelmReleasedPlugins() {
   const [helmInstalledNames, setHelmInstalledNames] = useState<Set<string>>(new Set());
+  const [helmVersionMap, setHelmVersionMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
@@ -30,13 +32,21 @@ export function useHelmReleasedPlugins() {
       })
       .then((data) => {
         const names = new Set(data.releases.map((r) => r.name));
+        const versions = new Map<string, string>();
+        for (const r of data.releases) {
+          if (r.app_version) {
+            versions.set(r.name, r.app_version);
+          }
+        }
         setHelmInstalledNames(names);
+        setHelmVersionMap(versions);
         setLoading(false);
       })
       .catch((e: Error) => {
         if (e.name === 'AbortError') return;
         setError(e.message);
         setHelmInstalledNames(new Set());
+        setHelmVersionMap(new Map());
         setLoading(false);
       });
 
@@ -45,5 +55,5 @@ export function useHelmReleasedPlugins() {
 
   const refetch = useCallback(() => setFetchCount((c) => c + 1), []);
 
-  return { helmInstalledNames, loading, error, refetch };
+  return { helmInstalledNames, helmVersionMap, loading, error, refetch };
 }
