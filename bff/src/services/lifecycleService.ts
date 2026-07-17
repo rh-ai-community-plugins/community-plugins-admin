@@ -2,13 +2,20 @@ import { helmInstall, helmUpgrade, helmUninstall } from './helmService';
 import {
   addPluginToConfig,
   removePluginFromConfig,
-  getModuleFederationConfig,
   kebabToCamelScope,
 } from './dashboardConfigService';
 import { k8sRequest } from './k8sApiClient';
 import { getPluginMetadata } from './pluginMetadataClient';
 import { getRegistryPlugins } from './charterClient';
 import { LifecycleStep, LifecycleResponse, ModuleFederationEntry } from '../types/lifecycle';
+
+function sanitizeErrorMessage(err: unknown): string {
+  const raw = sanitizeErrorMessage(err);
+  return raw
+    .replace(/--kube-token\s+\S+/g, '--kube-token [REDACTED]')
+    .replace(/system:serviceaccount:[^\s"]+/g, '[service-account]')
+    .replace(/https?:\/\/\d+\.\d+\.\d+\.\d+:\d+/g, '[api-server]');
+}
 
 function createStep(id: string, label: string): LifecycleStep {
   return { id, label, status: 'pending' };
@@ -102,11 +109,11 @@ export async function installPlugin(
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
-      markFailed(failedStep, err instanceof Error ? err.message : String(err));
+      markFailed(failedStep, sanitizeErrorMessage(err));
     }
     return {
       success: false,
-      message: `Failed to install plugin "${pluginName}": ${err instanceof Error ? err.message : String(err)}`,
+      message: `Failed to install plugin "${pluginName}": ${sanitizeErrorMessage(err)}`,
       steps,
     };
   }
@@ -137,11 +144,11 @@ export async function upgradePlugin(
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
-      markFailed(failedStep, err instanceof Error ? err.message : String(err));
+      markFailed(failedStep, sanitizeErrorMessage(err));
     }
     return {
       success: false,
-      message: `Failed to upgrade plugin "${pluginName}": ${err instanceof Error ? err.message : String(err)}`,
+      message: `Failed to upgrade plugin "${pluginName}": ${sanitizeErrorMessage(err)}`,
       steps,
     };
   }
@@ -188,11 +195,11 @@ export async function removePlugin(
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
-      markFailed(failedStep, err instanceof Error ? err.message : String(err));
+      markFailed(failedStep, sanitizeErrorMessage(err));
     }
     return {
       success: false,
-      message: `Failed to remove plugin "${pluginName}": ${err instanceof Error ? err.message : String(err)}`,
+      message: `Failed to remove plugin "${pluginName}": ${sanitizeErrorMessage(err)}`,
       steps,
     };
   }
@@ -225,11 +232,11 @@ export async function enablePlugin(
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
-      markFailed(failedStep, err instanceof Error ? err.message : String(err));
+      markFailed(failedStep, sanitizeErrorMessage(err));
     }
     return {
       success: false,
-      message: `Failed to enable plugin "${pluginName}": ${err instanceof Error ? err.message : String(err)}`,
+      message: `Failed to enable plugin "${pluginName}": ${sanitizeErrorMessage(err)}`,
       steps,
     };
   }
@@ -245,13 +252,6 @@ export async function disablePlugin(
 
   try {
     markRunning(steps[0]);
-
-    const config = await getModuleFederationConfig(token);
-    const scope = kebabToCamelScope(pluginName);
-    if (!config.some((e) => e.scope === scope)) {
-      throw new Error(`Plugin "${pluginName}" is not currently enabled`);
-    }
-
     await removePluginFromConfig(token, pluginName);
     markCompleted(steps[0]);
 
@@ -259,11 +259,11 @@ export async function disablePlugin(
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
-      markFailed(failedStep, err instanceof Error ? err.message : String(err));
+      markFailed(failedStep, sanitizeErrorMessage(err));
     }
     return {
       success: false,
-      message: `Failed to disable plugin "${pluginName}": ${err instanceof Error ? err.message : String(err)}`,
+      message: `Failed to disable plugin "${pluginName}": ${sanitizeErrorMessage(err)}`,
       steps,
     };
   }

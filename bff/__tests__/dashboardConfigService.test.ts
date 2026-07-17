@@ -42,6 +42,10 @@ describe('scopeToKebab', () => {
   it('leaves lowercase unchanged', () => {
     expect(scopeToKebab('brewet')).toBe('brewet');
   });
+
+  it('handles PascalCase without leading hyphen', () => {
+    expect(scopeToKebab('CommunityPlugins')).toBe('community-plugins');
+  });
 });
 
 describe('kebabToCamelScope', () => {

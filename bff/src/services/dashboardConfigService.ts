@@ -6,7 +6,7 @@ const DASHBOARD_DEPLOYMENT = 'rhods-dashboard';
 const MF_ENV_VAR = 'MODULE_FEDERATION_CONFIG';
 
 export function scopeToKebab(scope: string): string {
-  return scope.replace(/([A-Z])/g, '-$1').toLowerCase();
+  return scope.replace(/([A-Z])/g, '-$1').replace(/^-/, '').toLowerCase();
 }
 
 export function kebabToCamelScope(name: string): string {
@@ -132,10 +132,12 @@ async function patchModuleFederationConfig(
       throw new Error(`Failed to patch ${MF_ENV_VAR}: HTTP ${patchRes.status}`);
     }
   } else {
+    const targetIndex = containers.findIndex((c) => c.name === DASHBOARD_DEPLOYMENT);
+    const ci = targetIndex >= 0 ? targetIndex : 0;
     const patch = [
       {
         op: 'add' as const,
-        path: '/spec/template/spec/containers/0/env/-',
+        path: `/spec/template/spec/containers/${ci}/env/-`,
         value: { name: MF_ENV_VAR, value: configValue },
       },
     ];
