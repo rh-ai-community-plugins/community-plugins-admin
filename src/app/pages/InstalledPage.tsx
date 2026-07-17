@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   PageSection,
   Title,
@@ -9,6 +10,8 @@ import {
   Spinner,
   EmptyState,
   EmptyStateBody,
+  EmptyStateFooter,
+  EmptyStateActions,
   Button,
   Bullseye,
   Alert,
@@ -46,6 +49,7 @@ const statusConfig: Record<PluginHealthStatus, { label: string; color: 'green' |
 };
 
 const InstalledPage: React.FC = () => {
+  const navigate = useNavigate();
   const {
     plugins,
     loading,
@@ -243,6 +247,15 @@ const InstalledPage: React.FC = () => {
                 ? 'No community plugins are currently installed. Browse the Catalog to discover and install plugins.'
                 : 'No installed plugins match the current search.'}
             </EmptyStateBody>
+            {plugins.length === 0 && (
+              <EmptyStateFooter>
+                <EmptyStateActions>
+                  <Button variant="primary" onClick={() => navigate('../catalog')}>
+                    Browse Catalog
+                  </Button>
+                </EmptyStateActions>
+              </EmptyStateFooter>
+            )}
           </EmptyState>
         ) : (
           <Table aria-label="Installed plugins" variant="compact">

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import InstalledPage from '../InstalledPage';
 import { useInstalledPlugins } from '~/app/hooks/useInstalledPlugins';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
@@ -309,6 +310,30 @@ describe('InstalledPage', () => {
     render(<InstalledPage />);
     expect(screen.getByLabelText('Checking community-plugins-admin status')).toBeInTheDocument();
     expect(screen.getByLabelText('Checking brewet status')).toBeInTheDocument();
+  });
+
+  it('should show Browse Catalog button in empty state and navigate to catalog when clicked', async () => {
+    mockUseInstalledPlugins.mockReturnValue({
+      ...defaultReturn,
+      plugins: [],
+    });
+
+    const mockNavigate = jest.fn();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const routerMock = jest.requireMock('react-router-dom') as any;
+    const originalUseNavigate = routerMock.useNavigate;
+    routerMock.useNavigate = () => mockNavigate;
+
+    try {
+      render(<InstalledPage />);
+
+      const browseCatalogBtn = screen.getByRole('button', { name: 'Browse Catalog' });
+      expect(browseCatalogBtn).toBeInTheDocument();
+      await userEvent.click(browseCatalogBtn);
+      expect(mockNavigate).toHaveBeenCalledWith('../catalog');
+    } finally {
+      routerMock.useNavigate = originalUseNavigate;
+    }
   });
 
   it('opens plugin detail modal when row is clicked', () => {

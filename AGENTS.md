@@ -62,20 +62,44 @@ Shared singletons (react, react-dom, react-router-dom, @patternfly/react-core, @
 
 The plugin has two pages, routed under `/community-plugins-admin/*`:
 
-- **Catalog page** (`src/app/pages/CatalogPage.tsx`) — Browse available community plugins from the charter registry.
-- **Installed page** (`src/app/pages/InstalledPage.tsx`) — View and manage installed community plugins.
+- **Catalog page** (`src/app/pages/CatalogPage.tsx`) — Browse available community plugins from the charter registry. Displays a PatternFly card grid with search, filtering (status, maintenance tier, install state), and version comparison for installed plugins.
+- **Installed page** (`src/app/pages/InstalledPage.tsx`) — View and manage installed community plugins. Shows a table with health status, version, maintenance tier, and admin actions (upgrade, disable, remove).
 
-A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) is a placeholder shell for the detail overlay that will be built out in Phase 5. It is not yet wired into either page.
+A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) opens from either page to show full plugin metadata and lifecycle action buttons (install, upgrade, remove, enable, disable). The modal preserves parent page state (filters, scroll, search).
+
+### Components
+
+- **`CommunityBanner.tsx`** — [SHARED] Orange banner identifying community plugin pages. Must not be removed.
+- **`CommunityPluginsAdminNavIcon.tsx`** — SVG icon for the plugin's sidebar nav entry.
+- **`PluginDetailModal.tsx`** — Full plugin detail overlay with metadata sections, action buttons (admin-only), and lifecycle integration.
+- **`ConfirmRemoveModal.tsx`** — Confirmation dialog requiring the user to type the plugin name before removal.
+- **`LifecycleProgressModal.tsx`** — Step-by-step progress display for install/upgrade/remove operations using PatternFly `ProgressStepper`.
 
 ### Custom Hooks
 
-Five hooks in `src/app/hooks/` provide data fetching and API integration:
+Eleven hooks in `src/app/hooks/` provide data fetching, state management, and API integration:
 
 - `useCurrentUser` — Fetches authenticated user info from `/api/status`.
 - `useProjects` — Fetches accessible projects from the OpenShift projects API.
 - `useFavoriteProjects` — Manages localStorage-backed project favorites.
 - `useLastSelectedProject` — Persists the last-selected project in localStorage.
 - `useAccessReview` — Checks RBAC permissions via SelfSubjectAccessReview.
+- `useCatalog` — Fetches the merged plugin catalog from the BFF (`GET /api/catalog`). Returns plugin list with loading/error/refetch states.
+- `useInstalledPluginNames` — Reads `MODULE_FEDERATION_CONFIG` from the dashboard to determine which plugins are currently enabled.
+- `useHelmReleasedPlugins` — Lists Helm releases via the BFF (`GET /api/plugins`) to find all deployed plugins, including disabled ones. Provides version mapping.
+- `useInstalledPlugins` — Merges installed plugin names, Helm releases, and catalog metadata to produce a unified installed plugins list with health status.
+- `usePluginDetail` — Fetches full metadata for a single plugin from the BFF (`GET /api/catalog/:name`) and resolves installed state.
+- `usePluginLifecycle` — Provides install/upgrade/remove/enable/disable operations that call BFF lifecycle endpoints. Tracks operation progress, loading, and result state.
+
+### Frontend Types
+
+- `src/app/types/catalog.ts` — `CatalogPlugin` type for the merged catalog response from the BFF.
+- `src/app/types/installed.ts` — `InstalledPlugin` and `PluginHealthStatus` types for the installed plugins view.
+- `src/app/types/lifecycle.ts` — `LifecycleResult`, `LifecycleStep`, and related types for plugin lifecycle operations.
+
+### Utilities
+
+- `src/app/utils/maintenance.ts` — Helper functions for label colors and display text for maintenance tiers, status badges, and deployment model labels.
 
 ### BFF Service
 
@@ -85,17 +109,33 @@ The BFF app is defined in `bff/src/app.ts` (Express middleware and routes) and s
 
 **Endpoints:**
 
-- `GET /api/health` — liveness probe
-- `GET /api/catalog` — merged list of all community plugins (registry entry + resolved metadata). Supports `?refresh=true` to force cache invalidation.
-- `GET /api/catalog/:name` — full metadata for a single plugin
+- `GET /api/health` — Liveness probe.
+- `GET /api/catalog` — Merged list of all community plugins (registry entry + resolved metadata). Supports `?refresh=true` to force cache invalidation.
+- `GET /api/catalog/:name` — Full metadata for a single plugin.
+- `GET /api/plugins` — List all Helm-deployed plugin releases across namespaces.
+- `POST /api/plugins/:name/install` — Install a plugin via Helm. Accepts `namespace` and `values` in the request body.
+- `POST /api/plugins/:name/upgrade` — Upgrade a plugin to the latest chart version.
+- `DELETE /api/plugins/:name` — Remove a plugin (Helm uninstall + config cleanup). Supports `?deleteNamespace=true`.
+- `POST /api/plugins/:name/enable` — Add a plugin's Module Federation entry to `MODULE_FEDERATION_CONFIG`.
+- `POST /api/plugins/:name/disable` — Remove a plugin's entry from `MODULE_FEDERATION_CONFIG` (plugin stays deployed but hidden).
+
+All lifecycle endpoints require a Bearer token (forwarded from the dashboard) and validate the plugin name against `^[a-z][a-z0-9-]{0,62}[a-z0-9]$`.
 
 **Services:**
 
-- `bff/src/services/charterClient.ts` — fetches `plugins.yaml` from the charter registry on GitHub, parses YAML, caches in-memory with configurable TTL (default 5 min, `CHARTER_CACHE_TTL_MS` env var). Serves stale cache on fetch failure.
-- `bff/src/services/pluginMetadataClient.ts` — fetches `plugin.yaml` from each plugin's GitHub repo, parses and validates, per-plugin cache with TTL (`PLUGIN_CACHE_TTL_MS`), concurrent fetches with configurable limit (`PLUGIN_FETCH_CONCURRENCY`, default 5). Returns null for plugins with missing/invalid metadata.
-- `bff/src/utils/httpClient.ts` — shared HTTP fetch utility with redirect following, used by both service clients.
+- `bff/src/services/charterClient.ts` — Fetches `plugins.yaml` from the charter registry on GitHub, parses YAML, caches in-memory with configurable TTL (default 5 min, `CHARTER_CACHE_TTL_MS` env var). Serves stale cache on fetch failure.
+- `bff/src/services/pluginMetadataClient.ts` — Fetches `plugin.yaml` from each plugin's GitHub repo, parses and validates, per-plugin cache with TTL (`PLUGIN_CACHE_TTL_MS`), concurrent fetches with configurable limit (`PLUGIN_FETCH_CONCURRENCY`, default 5). Returns null for plugins with missing/invalid metadata.
+- `bff/src/services/dashboardConfigService.ts` — Reads and modifies `MODULE_FEDERATION_CONFIG` on the `rhods-dashboard` deployment. Handles JSON Patch operations with optimistic concurrency control (409 conflict retry).
+- `bff/src/services/helmService.ts` — Executes Helm CLI operations (install, upgrade, uninstall, list) using temporary kubeconfig files. Validates Helm values and discovers plugin namespaces.
+- `bff/src/services/lifecycleService.ts` — Orchestrates plugin lifecycle operations (install, upgrade, remove, enable, disable) by coordinating chart resolution, Helm execution, and config updates.
+- `bff/src/services/k8sApiClient.ts` — Low-level K8s API HTTP client with CA cert caching, TLS configuration, and request timeout handling.
+- `bff/src/utils/httpClient.ts` — Shared HTTP fetch utility with redirect following, used by charter and metadata clients.
+- `bff/src/utils/k8sClient.ts` — K8s API base URL resolution (in-cluster vs local dev).
 
-**Types:** `bff/src/types/catalog.ts` defines `RegistryPlugin` (upstream YAML schema), `PluginMetadata` (plugin.yaml schema), and `CatalogPlugin` (camelCase API response shape).
+**Types:**
+
+- `bff/src/types/catalog.ts` — `RegistryPlugin` (upstream YAML schema), `PluginMetadata` (plugin.yaml schema), and `CatalogPlugin` (camelCase API response shape).
+- `bff/src/types/lifecycle.ts` — `InstallRequest`, `UpgradeRequest`, and related types for lifecycle operations.
 
 ### Entry Point Chain
 
@@ -124,8 +164,11 @@ Jest with `ts-jest` preset and `jsdom` environment (`jest.config.js`). `jest.set
 ### Deployment
 
 - **Frontend container**: Multi-stage build in `Containerfile` — UBI9 Node 22 builder → UBI9 Nginx 1.24 serving `dist/` on port 8080 as UID 1001. Nginx adds CORS header on `remoteEntry.js`.
-- **BFF container**: Multi-stage build in `bff/Containerfile` — UBI9 Node 22 builder → UBI9 Node 22 runtime on port 3000 as UID 1001.
-- **Helm chart**: `chart/` deploys to Kubernetes with Deployment + Service for both frontend and BFF. Frontend defaults to `quay.io/OWNER/community-plugins-admin:latest`, BFF to `quay.io/OWNER/community-plugins-admin-bff:latest`.
+- **BFF container**: Multi-stage build in `bff/Containerfile` — UBI9 Node 22 builder → UBI9 Node 22 runtime on port 3000 as UID 1001. Includes Helm binary for lifecycle operations.
+- **Helm chart**: `chart/` deploys to Kubernetes with:
+  - Frontend: Deployment + Service (Nginx on port 8080)
+  - BFF: Deployment + Service (Node.js on port 3000) + ServiceAccount + ClusterRole + ClusterRoleBinding
+  - The BFF ServiceAccount has cluster-level permissions for managing plugin deployments, namespaces, and the dashboard's `MODULE_FEDERATION_CONFIG`.
 
 ### CI/CD Workflows
 
@@ -137,9 +180,10 @@ Jest with `ts-jest` preset and `jsdom` environment (`jest.config.js`). `jest.set
 Project documentation lives under `docs/` in semantic subfolders:
 
 ```text
-docs/architecture/   — Plugin system internals and extension contract
-docs/development/    — Local dev setup and dashboard API reference
+docs/architecture/   — Plugin system internals, extension contract, BFF pattern
+docs/development/    — Local dev setup, project layout, customization, build & push
 docs/deployment/     — OpenShift deployment with Helm and dashboard registration
+docs/project/        — Project plan and phase tracking
 ```
 
 ## Key Conventions

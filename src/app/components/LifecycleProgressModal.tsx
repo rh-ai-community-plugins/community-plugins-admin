@@ -114,8 +114,8 @@ const LifecycleProgressModal: React.FC<LifecycleProgressModalProps> = ({
       <ModalFooter>
         <Button
           variant="primary"
-          onClick={onClose}
-          isDisabled={inProgress}
+          onClick={inProgress ? undefined : onClose}
+          isAriaDisabled={inProgress}
         >
           {success ? 'Done' : 'Close'}
         </Button>

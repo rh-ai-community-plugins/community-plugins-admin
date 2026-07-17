@@ -17,7 +17,25 @@ Community Plugins Admin is designed to be the **first plugin** installed on an R
 
 ### How It Works
 
-The plugin reads the community plugin registry maintained in the [rh-ai-community-plugins/charter](https://github.com/rh-ai-community-plugins/charter) repository. Each registered plugin publishes its own `plugin.yaml` at its repo root, which describes identity, version, compatibility, deployment model, and installation method. Community Plugins Admin aggregates this metadata to build the catalog.
+The plugin reads the community plugin registry maintained in the [rh-ai-community-plugins/charter](https://github.com/rh-ai-community-plugins/charter) repository. Each registered plugin publishes its own `plugin.yaml` at its repo root, which describes identity, version, compatibility, deployment model, and installation method. The BFF (Backend For Frontend) service aggregates this metadata server-side to build the catalog.
+
+**Lifecycle operations** (install, upgrade, remove) are executed via Helm through the BFF service, which also manages `MODULE_FEDERATION_CONFIG` on the dashboard deployment to register/unregister plugins. Enable/disable operations modify the federation config without touching the Helm release.
+
+The BFF runs with a dedicated ServiceAccount that has cluster-level RBAC permissions for managing plugin deployments, namespaces, and the dashboard's federation configuration. All user-initiated operations forward the user's Bearer token for RBAC-scoped API calls.
+
+### BFF API
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/health` | GET | Liveness probe |
+| `/api/catalog` | GET | Merged plugin catalog (supports `?refresh=true`) |
+| `/api/catalog/:name` | GET | Single plugin metadata |
+| `/api/plugins` | GET | All Helm-deployed plugin releases |
+| `/api/plugins/:name/install` | POST | Install a plugin via Helm |
+| `/api/plugins/:name/upgrade` | POST | Upgrade a plugin |
+| `/api/plugins/:name` | DELETE | Remove a plugin (supports `?deleteNamespace=true`) |
+| `/api/plugins/:name/enable` | POST | Enable a disabled plugin |
+| `/api/plugins/:name/disable` | POST | Disable a plugin (hide from dashboard) |
 
 ## Quick Start
 
