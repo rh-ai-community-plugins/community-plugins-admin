@@ -73,10 +73,9 @@ const PluginDetailContent: React.FC<{
   onInstall: () => void;
   onUpgrade: () => void;
   onRemove: () => void;
-  onEnable: () => void;
   onDisable: () => void;
   lifecycleLoading: boolean;
-}> = ({ plugin, installed, isAdmin, onClose, onInstall, onUpgrade, onRemove, onEnable, onDisable, lifecycleLoading }) => {
+}> = ({ plugin, installed, isAdmin, onClose, onInstall, onUpgrade, onRemove, onDisable, lifecycleLoading }) => {
   const displayName = plugin.displayName ?? plugin.name;
 
   return (
@@ -434,12 +433,6 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
     await lifecycle.remove(pluginName, deleteNamespace);
   };
 
-  const handleEnable = async () => {
-    if (!pluginName) return;
-    setShowProgress(true);
-    await lifecycle.enable(pluginName);
-  };
-
   const handleDisable = async () => {
     if (!pluginName) return;
     setShowProgress(true);
@@ -478,7 +471,6 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
             onInstall={handleInstall}
             onUpgrade={handleUpgrade}
             onRemove={() => setShowRemoveConfirm(true)}
-            onEnable={handleEnable}
             onDisable={handleDisable}
             lifecycleLoading={lifecycle.loading}
           />
