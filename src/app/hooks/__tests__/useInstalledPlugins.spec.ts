@@ -94,6 +94,11 @@ describe('parseRemoteEntryUrl', () => {
     expect(parseRemoteEntryUrl('not-a-url')).toBeNull();
   });
 
+  it('returns null for non-K8s .local hostnames (e.g. mDNS)', () => {
+    expect(parseRemoteEntryUrl('http://printer.local/remoteEntry.js')).toBeNull();
+    expect(parseRemoteEntryUrl('http://my-service.home.local:8080/remoteEntry.js')).toBeNull();
+  });
+
   it('returns null for empty string', () => {
     expect(parseRemoteEntryUrl('')).toBeNull();
   });

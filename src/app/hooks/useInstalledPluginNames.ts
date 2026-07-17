@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 
 import { ModuleFederationEntry } from '~/app/types/installed';
 
-export { type ModuleFederationEntry } from '~/app/types/installed';
-
 const DASHBOARD_NAMESPACE = 'redhat-ods-applications';
 const DASHBOARD_DEPLOYMENT = 'rhods-dashboard';
 

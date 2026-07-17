@@ -7,7 +7,7 @@ export function parseRemoteEntryUrl(remoteEntry: string): { namespace: string; s
   try {
     const url = new URL(remoteEntry);
     const hostParts = url.hostname.split('.');
-    if (hostParts.length >= 2 && hostParts[hostParts.length - 1] === 'local') {
+    if (hostParts.length >= 5 && hostParts.slice(-3).join('.') === 'svc.cluster.local') {
       return { service: hostParts[0], namespace: hostParts[1] };
     }
   } catch {
