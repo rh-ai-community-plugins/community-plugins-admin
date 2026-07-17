@@ -89,6 +89,10 @@ describe('getModuleFederationConfig', () => {
 });
 
 describe('addPluginToConfig', () => {
+  beforeEach(() => {
+    mockK8sRequest.mockReset();
+  });
+
   it('adds entry and patches deployment', async () => {
     mockK8sRequest.mockResolvedValue({
       status: 200,
@@ -101,6 +105,70 @@ describe('addPluginToConfig', () => {
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
     expect(patchCall).toBeDefined();
     expect(patchCall![0].contentType).toBe('application/json-patch+json');
+  });
+
+  it('appends via env/- when container already has an env array', async () => {
+    // Container has an existing env array — patch must use env/- to append.
+    mockK8sRequest.mockResolvedValue({
+      status: 200,
+      body: {
+        spec: {
+          template: {
+            spec: {
+              containers: [
+                {
+                  name: 'rhods-dashboard',
+                  env: [{ name: 'OTHER_VAR', value: 'foo' }],
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    await addPluginToConfig('test-token', newEntry);
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    expect(patchCall).toBeDefined();
+    const patchBody = patchCall![0].body as Array<{ op: string; path: string }>;
+    expect(patchBody[0].op).toBe('add');
+    expect(patchBody[0].path).toMatch(/\/env\/-$/);
+  });
+
+  it('creates env array via env (no /-) when container has no env field', async () => {
+    // Container has NO env field — using env/- would yield HTTP 422.
+    // The patch must use env (without /-) to create the array.
+    mockK8sRequest.mockResolvedValue({
+      status: 200,
+      body: {
+        spec: {
+          template: {
+            spec: {
+              containers: [
+                {
+                  name: 'rhods-dashboard',
+                  // intentionally no env field
+                },
+              ],
+            },
+          },
+        },
+      },
+    });
+
+    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    await addPluginToConfig('test-token', newEntry);
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    expect(patchCall).toBeDefined();
+    const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
+    expect(patchBody[0].op).toBe('add');
+    // Path must end with /env, not /env/-
+    expect(patchBody[0].path).toMatch(/\/env$/);
+    // Value must be an array containing the new entry
+    expect(Array.isArray(patchBody[0].value)).toBe(true);
   });
 
   it('throws when plugin already exists', async () => {
