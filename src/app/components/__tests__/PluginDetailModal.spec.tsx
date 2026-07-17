@@ -395,5 +395,31 @@ describe('PluginDetailModal', () => {
       const closeButtons = screen.getAllByRole('button', { name: 'Close' });
       expect(closeButtons.length).toBeGreaterThanOrEqual(1);
     });
+
+    it('shows a disabled Install button with tooltip when plugin has no install configuration', () => {
+      const pluginWithoutInstall: CatalogPlugin = {
+        ...fullPlugin,
+        install: undefined,
+      };
+      mockUsePluginDetail.mockReturnValue(loadedResult(pluginWithoutInstall, false));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
+      );
+      const installButton = screen.getByRole('button', { name: 'Install' });
+      expect(installButton).toBeInTheDocument();
+      expect(installButton).toHaveAttribute('aria-disabled', 'true');
+    });
+
+    it('does not show disabled Install button for non-admin when plugin has no install configuration', () => {
+      const pluginWithoutInstall: CatalogPlugin = {
+        ...fullPlugin,
+        install: undefined,
+      };
+      mockUsePluginDetail.mockReturnValue(loadedResult(pluginWithoutInstall, false));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
+      );
+      expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument();
+    });
   });
 });
