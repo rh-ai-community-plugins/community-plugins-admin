@@ -39,6 +39,7 @@ import FilterIcon from '@patternfly/react-icons/dist/js/icons/filter-icon';
 import SearchIcon from '@patternfly/react-icons/dist/js/icons/search-icon';
 import CheckCircleIcon from '@patternfly/react-icons/dist/js/icons/check-circle-icon';
 import BanIcon from '@patternfly/react-icons/dist/js/icons/ban-icon';
+import ArrowCircleUpIcon from '@patternfly/react-icons/dist/js/icons/arrow-circle-up-icon';
 import { useCatalog } from '~/app/hooks/useCatalog';
 import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
 import { useHelmReleasedPlugins } from '~/app/hooks/useHelmReleasedPlugins';
@@ -68,7 +69,7 @@ const INSTALL_STATE_OPTIONS = [
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();
   const { installedNames, loading: installedLoading, error: installedError, refetch: installedRefetch } = useInstalledPluginNames();
-  const { helmInstalledNames, loading: helmLoading, error: helmError, refetch: helmRefetch } = useHelmReleasedPlugins();
+  const { helmInstalledNames, helmVersionMap, loading: helmLoading, error: helmError, refetch: helmRefetch } = useHelmReleasedPlugins();
   const { user } = useCurrentUser();
   const isAdmin = user?.isAdmin ?? false;
 
@@ -287,6 +288,11 @@ const CatalogPage: React.FC = () => {
   const renderPluginCard = (plugin: CatalogPlugin) => {
     const isInstalled = installedNames.has(plugin.name);
     const isDisabled = helmInstalledNames.has(plugin.name) && !isInstalled;
+    const installedVersion = helmVersionMap.get(plugin.name);
+    const hasUpdate =
+      installedVersion !== undefined &&
+      plugin.version !== undefined &&
+      installedVersion !== plugin.version;
     const displayName = plugin.displayName ?? plugin.name;
     return (
       <GalleryItem key={plugin.name}>
@@ -335,6 +341,13 @@ const CatalogPage: React.FC = () => {
             {plugin.version && (
               <div className="pf-v6-u-mb-sm pf-v6-u-font-size-sm" style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
                 Version {plugin.version}
+              </div>
+            )}
+            {hasUpdate && (
+              <div className="pf-v6-u-mb-sm">
+                <Label color="blue" icon={<ArrowCircleUpIcon />} isCompact>
+                  Update available: {installedVersion} → {plugin.version}
+                </Label>
               </div>
             )}
           </CardBody>
