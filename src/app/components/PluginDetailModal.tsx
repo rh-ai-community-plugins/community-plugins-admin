@@ -403,6 +403,16 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
           onClose={onClose}
         />
       )}
+      {!loading && !error && !plugin && pluginName && (
+        <>
+          <ModalHeader title={pluginName} />
+          <ModalBody>
+            <Bullseye>
+              <Spinner aria-label="Loading plugin details" />
+            </Bullseye>
+          </ModalBody>
+        </>
+      )}
     </Modal>
   );
 };
