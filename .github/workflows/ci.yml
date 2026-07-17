@@ -70,3 +70,12 @@ jobs:
 
       - name: Template chart
         run: helm template test-release chart/
+
+      - name: Verify RBAC safety guard
+        run: |
+          if helm template test-release chart/ \
+            --set bff.serviceAccount.create=false \
+            --set bff.rbac.create=true 2>/dev/null; then
+            echo "ERROR: expected helm template to fail but it succeeded"
+            exit 1
+          fi
