@@ -1,4 +1,7 @@
 import { execFile } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { getK8sBaseUrl } from '../utils/k8sClient';
 
 const HELM_TIMEOUT_MS = 120_000;
@@ -13,7 +16,29 @@ interface HelmResult {
 }
 
 function sanitizeHelmError(message: string): string {
-  return message.replace(/--kube-token\s+\S+/g, '--kube-token [REDACTED]');
+  return message.replace(/--kubeconfig\s+\S+/g, '--kubeconfig [REDACTED]');
+}
+
+function buildKubeconfig(apiServer: string, token: string): string {
+  return [
+    'apiVersion: v1',
+    'kind: Config',
+    'clusters:',
+    '- cluster:',
+    `    server: ${apiServer}`,
+    '    insecure-skip-tls-verify: false',
+    '  name: cluster',
+    'contexts:',
+    '- context:',
+    '    cluster: cluster',
+    '    user: user',
+    '  name: context',
+    'current-context: context',
+    'users:',
+    '- name: user',
+    '  user:',
+    `    token: "${token}"`,
+  ].join('\n');
 }
 
 export function validateHelmValues(values: unknown): asserts values is Record<string, string | number | boolean> {
@@ -34,38 +59,51 @@ export function validateHelmValues(values: unknown): asserts values is Record<st
   }
 }
 
-function runHelm(args: string[], token: string): Promise<HelmResult> {
+async function runHelm(args: string[], token: string): Promise<HelmResult> {
   const baseUrl = getK8sBaseUrl();
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'helm-'));
 
-  const fullArgs = [
-    ...args,
-    '--kube-apiserver', baseUrl,
-    '--kube-token', token,
-    '--kube-insecure-skip-tls-verify=false',
-  ];
+  try {
+    const kubeconfigPath = path.join(tmpDir, 'kubeconfig');
+    fs.writeFileSync(kubeconfigPath, buildKubeconfig(baseUrl, token), { mode: 0o600 });
 
-  return new Promise((resolve, reject) => {
-    const proc = execFile(
-      HELM_BIN,
-      fullArgs,
-      {
-        timeout: HELM_TIMEOUT_MS,
-        maxBuffer: 5 * 1024 * 1024,
-        env: { ...process.env, HELM_CACHE_HOME: '/tmp/helm/cache', HELM_CONFIG_HOME: '/tmp/helm/config', HELM_DATA_HOME: '/tmp/helm/data' },
-      },
-      (error, stdout, stderr) => {
-        if (error) {
-          reject(new Error(sanitizeHelmError(`Helm command failed: ${stderr || error.message}`)));
-          return;
-        }
-        resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
-      },
-    );
+    const fullArgs = [
+      ...args,
+      '--kube-apiserver', baseUrl,
+      '--kubeconfig', kubeconfigPath,
+      '--kube-insecure-skip-tls-verify=false',
+    ];
 
-    proc.on('error', (err) => {
-      reject(new Error(`Failed to execute helm: ${err.message}`));
+    return await new Promise<HelmResult>((resolve, reject) => {
+      const proc = execFile(
+        HELM_BIN,
+        fullArgs,
+        {
+          timeout: HELM_TIMEOUT_MS,
+          maxBuffer: 5 * 1024 * 1024,
+          env: {
+            ...process.env,
+            HELM_CACHE_HOME: path.join(tmpDir, 'cache'),
+            HELM_CONFIG_HOME: path.join(tmpDir, 'config'),
+            HELM_DATA_HOME: path.join(tmpDir, 'data'),
+          },
+        },
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(new Error(sanitizeHelmError(`Helm command failed: ${stderr || error.message}`)));
+            return;
+          }
+          resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
+        },
+      );
+
+      proc.on('error', (err) => {
+        reject(new Error(`Failed to execute helm: ${err.message}`));
+      });
     });
-  });
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 export async function helmInstall(
