@@ -87,7 +87,10 @@ export function useInstalledPlugins() {
 
   useEffect(() => {
     const currentEntries = entriesRef.current;
-    if (namesLoading || currentEntries.length === 0) return;
+    if (namesLoading || currentEntries.length === 0) {
+      setHealthLoading(false);
+      return;
+    }
 
     let cancelled = false;
     const controller = new AbortController();
