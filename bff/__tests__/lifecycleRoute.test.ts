@@ -118,11 +118,30 @@ describe('lifecycle routes', () => {
       expect(res.status).toBe(401);
     });
 
-    it('returns 200 on success', async () => {
+    it('returns 200 on success without namespace (service discovers it)', async () => {
       mockUpgrade.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('POST', '/api/plugins/my-plugin/upgrade', {}, 'token');
       expect(res.status).toBe(200);
-      expect(mockUpgrade).toHaveBeenCalledWith('my-plugin', 'token', undefined);
+      expect(mockUpgrade).toHaveBeenCalledWith('my-plugin', 'token', undefined, undefined);
+    });
+
+    it('passes custom namespace to upgradePlugin', async () => {
+      mockUpgrade.mockResolvedValue({ success: true, message: 'ok', steps: [] });
+      const res = await req('POST', '/api/plugins/my-plugin/upgrade', { namespace: 'custom-ns' }, 'token');
+      expect(res.status).toBe(200);
+      expect(mockUpgrade).toHaveBeenCalledWith('my-plugin', 'token', 'custom-ns', undefined);
+    });
+
+    it('returns 400 for invalid namespace in body', async () => {
+      const res = await req('POST', '/api/plugins/my-plugin/upgrade', { namespace: 'INVALID!' }, 'token');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/Invalid namespace/);
+    });
+
+    it('returns 400 for protected namespace in body', async () => {
+      const res = await req('POST', '/api/plugins/my-plugin/upgrade', { namespace: 'kube-system' }, 'token');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/protected namespace/);
     });
   });
 
@@ -132,11 +151,30 @@ describe('lifecycle routes', () => {
       expect(res.status).toBe(401);
     });
 
-    it('returns 200 on success', async () => {
+    it('returns 200 on success without namespace (service discovers it)', async () => {
       mockRemove.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('DELETE', '/api/plugins/my-plugin', undefined, 'token');
       expect(res.status).toBe(200);
-      expect(mockRemove).toHaveBeenCalledWith('my-plugin', 'token', false);
+      expect(mockRemove).toHaveBeenCalledWith('my-plugin', 'token', false, undefined);
+    });
+
+    it('passes custom namespace query param to removePlugin', async () => {
+      mockRemove.mockResolvedValue({ success: true, message: 'ok', steps: [] });
+      const res = await req('DELETE', '/api/plugins/my-plugin?namespace=custom-ns', undefined, 'token');
+      expect(res.status).toBe(200);
+      expect(mockRemove).toHaveBeenCalledWith('my-plugin', 'token', false, 'custom-ns');
+    });
+
+    it('returns 400 for invalid namespace query param', async () => {
+      const res = await req('DELETE', '/api/plugins/my-plugin?namespace=INVALID!', undefined, 'token');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/Invalid namespace/);
+    });
+
+    it('returns 400 for protected namespace query param', async () => {
+      const res = await req('DELETE', '/api/plugins/my-plugin?namespace=kube-system', undefined, 'token');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/protected namespace/);
     });
   });
 
