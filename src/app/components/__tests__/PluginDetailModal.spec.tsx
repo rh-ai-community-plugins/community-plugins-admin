@@ -238,6 +238,32 @@ describe('PluginDetailModal', () => {
       expect(screen.getByText('quay.io/org/test-plugin-bff:2.1.0')).toBeInTheDocument();
     });
 
+    it('falls back to latest when image tag is missing', () => {
+      const pluginWithoutTag = {
+        ...fullPlugin,
+        image: { repository: 'quay.io/org/test-plugin' } as { repository: string; tag: string },
+        bffImage: undefined,
+      };
+      mockUsePluginDetail.mockReturnValue(loadedResult(pluginWithoutTag));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
+      );
+      expect(screen.getByText('quay.io/org/test-plugin:latest')).toBeInTheDocument();
+    });
+
+    it('does not render image section when repository is missing', () => {
+      const pluginWithoutRepo = {
+        ...fullPlugin,
+        image: { tag: '1.0.0' } as { repository: string; tag: string },
+        bffImage: undefined,
+      };
+      mockUsePluginDetail.mockReturnValue(loadedResult(pluginWithoutRepo));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
+      );
+      expect(screen.queryByText('Container Images')).not.toBeInTheDocument();
+    });
+
     it('renders install method with helm info and prerequisites', () => {
       render(
         <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,

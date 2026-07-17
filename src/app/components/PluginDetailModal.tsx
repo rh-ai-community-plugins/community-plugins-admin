@@ -167,27 +167,27 @@ const PluginDetailContent: React.FC<{
             </DescriptionListGroup>
           )}
 
-          {(plugin.image || plugin.bffImage) && (
+          {(plugin.image?.repository || plugin.bffImage?.repository) && (
             <DescriptionListGroup>
               <DescriptionListTerm>Container Images</DescriptionListTerm>
               <DescriptionListDescription>
                 <List isPlain>
-                  {plugin.image && (
+                  {plugin.image?.repository && (
                     <ListItem>
                       <Split hasGutter>
                         <SplitItem>Frontend:</SplitItem>
                         <SplitItem>
-                          <code>{plugin.image.repository}:{plugin.image.tag}</code>
+                          <code>{plugin.image.repository}:{plugin.image.tag ?? 'latest'}</code>
                         </SplitItem>
                       </Split>
                     </ListItem>
                   )}
-                  {plugin.bffImage && (
+                  {plugin.bffImage?.repository && (
                     <ListItem>
                       <Split hasGutter>
                         <SplitItem>BFF:</SplitItem>
                         <SplitItem>
-                          <code>{plugin.bffImage.repository}:{plugin.bffImage.tag}</code>
+                          <code>{plugin.bffImage.repository}:{plugin.bffImage.tag ?? 'latest'}</code>
                         </SplitItem>
                       </Split>
                     </ListItem>
