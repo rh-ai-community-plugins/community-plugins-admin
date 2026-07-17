@@ -1,4 +1,4 @@
-import { helmInstall, helmUpgrade, helmUninstall, validateHelmValues } from '../src/services/helmService';
+import { helmInstall, helmUpgrade, helmUninstall, validateHelmValues, discoverReleaseNamespace } from '../src/services/helmService';
 import { execFile } from 'child_process';
 import { getK8sBaseUrl } from '../src/utils/k8sClient';
 
@@ -116,5 +116,66 @@ describe('helmUninstall', () => {
     expect(args).toContain('my-plugin');
     expect(args).toContain('--namespace');
     expect(args).toContain('ns');
+  });
+});
+
+describe('discoverReleaseNamespace', () => {
+  it('returns namespace for matching release', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, JSON.stringify([{ name: 'my-plugin', namespace: 'custom-ns', status: 'deployed' }]), '');
+      return undefined as never;
+    });
+
+    const ns = await discoverReleaseNamespace('my-plugin', 'token');
+    expect(ns).toBe('custom-ns');
+
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args).toContain('list');
+    expect(args).toContain('--all-namespaces');
+    expect(args).toContain('--filter');
+    expect(args).toContain('my-plugin');
+    expect(args).toContain('--output');
+    expect(args).toContain('json');
+  });
+
+  it('returns null when no release matches the name exactly', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      // helm --filter is regex-based, so "my-plugin" may return "my-plugin-extra" too;
+      // the code does an exact match, so this should return null
+      cb(null, JSON.stringify([{ name: 'my-plugin-extra', namespace: 'ns-extra', status: 'deployed' }]), '');
+      return undefined as never;
+    });
+
+    const ns = await discoverReleaseNamespace('my-plugin', 'token');
+    expect(ns).toBeNull();
+  });
+
+  it('returns null when the releases list is empty', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, JSON.stringify([]), '');
+      return undefined as never;
+    });
+
+    const ns = await discoverReleaseNamespace('my-plugin', 'token');
+    expect(ns).toBeNull();
+  });
+
+  it('returns null when helm returns invalid JSON', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, 'not-valid-json', '');
+      return undefined as never;
+    });
+
+    const ns = await discoverReleaseNamespace('my-plugin', 'token');
+    expect(ns).toBeNull();
+  });
+
+  it('throws when helm execution fails', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(new Error('helm not found'), '', 'command not found');
+      return undefined as never;
+    });
+
+    await expect(discoverReleaseNamespace('my-plugin', 'token')).rejects.toThrow('Helm command failed');
   });
 });

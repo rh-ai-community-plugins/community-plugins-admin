@@ -94,7 +94,18 @@ router.post('/:name/upgrade', async (req: Request, res: Response) => {
     return;
   }
 
-  const { values } = req.body ?? {};
+  const { namespace, values } = req.body ?? {};
+
+  if (namespace !== undefined) {
+    if (typeof namespace !== 'string' || !K8S_NAMESPACE_PATTERN.test(namespace)) {
+      res.status(400).json({ error: 'Invalid namespace: must be lowercase alphanumeric with hyphens, 2-64 characters' });
+      return;
+    }
+    if (PROTECTED_NAMESPACES.has(namespace)) {
+      res.status(400).json({ error: `Cannot upgrade in protected namespace "${namespace}"` });
+      return;
+    }
+  }
 
   if (values !== undefined) {
     try {
@@ -106,7 +117,7 @@ router.post('/:name/upgrade', async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await upgradePlugin(req.params.name, token, values);
+    const result = await upgradePlugin(req.params.name, token, namespace, values);
     res.status(result.success ? 200 : 500).json(result);
   } catch (err) {
     console.error(`Upgrade failed for ${req.params.name}`);
@@ -132,9 +143,21 @@ router.delete('/:name', async (req: Request, res: Response) => {
   }
 
   const deleteNamespace = req.query.deleteNamespace === 'true';
+  const namespace = typeof req.query.namespace === 'string' ? req.query.namespace : undefined;
+
+  if (namespace !== undefined) {
+    if (!K8S_NAMESPACE_PATTERN.test(namespace)) {
+      res.status(400).json({ error: 'Invalid namespace: must be lowercase alphanumeric with hyphens, 2-64 characters' });
+      return;
+    }
+    if (PROTECTED_NAMESPACES.has(namespace)) {
+      res.status(400).json({ error: `Cannot remove from protected namespace "${namespace}"` });
+      return;
+    }
+  }
 
   try {
-    const result = await removePlugin(req.params.name, token, deleteNamespace);
+    const result = await removePlugin(req.params.name, token, deleteNamespace, namespace);
     res.status(result.success ? 200 : 500).json(result);
   } catch (err) {
     console.error(`Remove failed for ${req.params.name}`);

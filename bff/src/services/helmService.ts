@@ -150,3 +150,25 @@ export async function helmList(
   const result = await runHelm(args, token);
   return result.stdout;
 }
+
+export async function discoverReleaseNamespace(
+  releaseName: string,
+  token: string,
+): Promise<string | null> {
+  const args = [
+    'list',
+    '--all-namespaces',
+    '--filter', releaseName,
+    '--output', 'json',
+  ];
+
+  const result = await runHelm(args, token);
+  let releases: Array<{ name: string; namespace: string }>;
+  try {
+    releases = JSON.parse(result.stdout) as Array<{ name: string; namespace: string }>;
+  } catch {
+    return null;
+  }
+  const match = releases.find((r) => r.name === releaseName);
+  return match?.namespace ?? null;
+}

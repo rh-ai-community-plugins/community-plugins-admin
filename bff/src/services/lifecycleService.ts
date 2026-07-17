@@ -1,4 +1,4 @@
-import { helmInstall, helmUpgrade, helmUninstall } from './helmService';
+import { helmInstall, helmUpgrade, helmUninstall, discoverReleaseNamespace } from './helmService';
 import {
   addPluginToConfig,
   removePluginFromConfig,
@@ -122,6 +122,7 @@ export async function installPlugin(
 export async function upgradePlugin(
   pluginName: string,
   token: string,
+  namespace?: string,
   values?: Record<string, unknown>,
 ): Promise<LifecycleResponse> {
   const steps: LifecycleStep[] = [
@@ -134,7 +135,7 @@ export async function upgradePlugin(
     const pluginInfo = await resolvePluginChart(pluginName);
     markCompleted(steps[0]);
 
-    const ns = pluginName;
+    const ns = namespace ?? (await discoverReleaseNamespace(pluginName, token)) ?? pluginName;
 
     markRunning(steps[1]);
     await helmUpgrade(pluginName, pluginInfo.chart, ns, token, values);
@@ -158,6 +159,7 @@ export async function removePlugin(
   pluginName: string,
   token: string,
   deleteNamespace?: boolean,
+  namespace?: string,
 ): Promise<LifecycleResponse> {
   const steps: LifecycleStep[] = [
     createStep('remove-config', 'Remove plugin from dashboard config'),
@@ -169,12 +171,14 @@ export async function removePlugin(
   }
 
   try {
+    const ns = namespace ?? (await discoverReleaseNamespace(pluginName, token)) ?? pluginName;
+
     markRunning(steps[0]);
     await removePluginFromConfig(token, pluginName);
     markCompleted(steps[0]);
 
     markRunning(steps[1]);
-    await helmUninstall(pluginName, pluginName, token);
+    await helmUninstall(pluginName, ns, token);
     markCompleted(steps[1]);
 
     if (deleteNamespace) {
@@ -182,7 +186,7 @@ export async function removePlugin(
       markRunning(nsStep);
       const res = await k8sRequest({
         method: 'DELETE',
-        path: `/api/v1/namespaces/${pluginName}`,
+        path: `/api/v1/namespaces/${ns}`,
         token,
       });
       if (res.status >= 300 && res.status !== 404) {
