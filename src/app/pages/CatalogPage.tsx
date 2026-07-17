@@ -43,7 +43,7 @@ import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { CatalogPlugin } from '~/app/types/catalog';
-import { maintenanceLabelColor, maintenanceDisplayText, statusLabelColor } from '~/app/utils/maintenance';
+import { maintenanceLabelColor, maintenanceDisplayText, statusLabelColor, deploymentModelLabel } from '~/app/utils/maintenance';
 
 type FilterKey = 'status' | 'maintenance' | 'installState';
 
@@ -329,7 +329,7 @@ const CatalogPage: React.FC = () => {
               </Label>
               {plugin.deploymentModel && (
                 <Label color="grey" isCompact>
-                  {plugin.deploymentModel}
+                  {deploymentModelLabel(plugin.deploymentModel)}
                 </Label>
               )}
             </LabelGroup>
