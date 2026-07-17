@@ -34,6 +34,8 @@ import {
 interface PluginDetailModalProps {
   pluginName: string | null;
   isAdmin: boolean;
+  installedNames: Set<string>;
+  installedLoading: boolean;
   onClose: () => void;
 }
 
@@ -365,9 +367,11 @@ const PluginDetailContent: React.FC<{
 const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
   pluginName,
   isAdmin,
+  installedNames,
+  installedLoading,
   onClose,
 }) => {
-  const { plugin, installed, loading, error } = usePluginDetail(pluginName);
+  const { plugin, installed, loading, error } = usePluginDetail(pluginName, installedNames, installedLoading);
 
   return (
     <Modal isOpen={!!pluginName} onClose={onClose} variant="large" aria-label="Plugin details">

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { CatalogPlugin } from '~/app/types/catalog';
-import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
 
 export interface PluginDetailResult {
   plugin: CatalogPlugin | null;
@@ -9,12 +8,14 @@ export interface PluginDetailResult {
   error: string | null;
 }
 
-export function usePluginDetail(pluginName: string | null): PluginDetailResult {
+export function usePluginDetail(
+  pluginName: string | null,
+  installedNames: Set<string>,
+  installedLoading: boolean,
+): PluginDetailResult {
   const [plugin, setPlugin] = useState<CatalogPlugin | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const { installedNames, loading: installedLoading } = useInstalledPluginNames();
 
   useEffect(() => {
     if (!pluginName) {
