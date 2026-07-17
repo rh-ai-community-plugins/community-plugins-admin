@@ -1,5 +1,6 @@
 import express from 'express';
 import catalogRouter from './routes/catalog';
+import lifecycleRouter from './routes/lifecycle';
 
 const app = express();
 
@@ -15,5 +16,6 @@ app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/catalog', catalogRouter);
+app.use('/api/plugins', lifecycleRouter);
 
 export default app;
