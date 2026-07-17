@@ -60,7 +60,7 @@ export function usePluginDetail(
   return {
     plugin,
     installed,
-    loading: loading || (!!pluginName && installedLoading),
+    loading: !error && (loading || (!!pluginName && installedLoading)),
     error,
   };
 }

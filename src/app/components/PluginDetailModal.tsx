@@ -385,7 +385,7 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
           </ModalBody>
         </>
       )}
-      {error && (
+      {!loading && error && (
         <>
           <ModalHeader title={pluginName ?? ''} />
           <ModalBody>
