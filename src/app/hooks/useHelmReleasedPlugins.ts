@@ -12,12 +12,6 @@ interface HelmReleasesResponse {
   releases: HelmRelease[];
 }
 
-/**
- * Fetches the list of Helm releases installed across all namespaces from the BFF.
- * This is used to detect plugins that are "installed but disabled" — they have a Helm
- * release (so `helmInstalledNames` includes them) but are absent from
- * MODULE_FEDERATION_CONFIG (so `installedNames` does not include them).
- */
 export function useHelmReleasedPlugins() {
   const [helmInstalledNames, setHelmInstalledNames] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);

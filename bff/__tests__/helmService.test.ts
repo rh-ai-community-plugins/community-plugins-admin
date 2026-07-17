@@ -294,23 +294,21 @@ describe('helmListAllNamespaces', () => {
     expect(result).toEqual(releases);
   });
 
-  it('returns empty array when helm command fails', async () => {
+  it('throws when helm command fails', async () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
       cb(new Error('helm not found'), '', 'command not found');
       return undefined as never;
     });
 
-    const result = await helmListAllNamespaces('user-token');
-    expect(result).toEqual([]);
+    await expect(helmListAllNamespaces('user-token')).rejects.toThrow('Helm command failed');
   });
 
-  it('returns empty array when output is invalid JSON', async () => {
+  it('throws when output is invalid JSON', async () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
       cb(null, 'not valid json', '');
       return undefined as never;
     });
 
-    const result = await helmListAllNamespaces('user-token');
-    expect(result).toEqual([]);
+    await expect(helmListAllNamespaces('user-token')).rejects.toThrow();
   });
 });

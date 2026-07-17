@@ -27,6 +27,7 @@ router.get('/', async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to list Helm releases' });
   }
 });
+
 const K8S_NAMESPACE_PATTERN = /^[a-z][a-z0-9-]{0,62}[a-z0-9]$/;
 
 const PROTECTED_NAMESPACES = new Set([

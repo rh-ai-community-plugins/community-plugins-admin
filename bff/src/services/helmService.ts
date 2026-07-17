@@ -219,10 +219,6 @@ export async function discoverReleaseNamespace(
 
 export async function helmListAllNamespaces(token: string): Promise<HelmRelease[]> {
   const args = ['list', '--all-namespaces', '--output', 'json'];
-  try {
-    const result = await runHelm(args, token);
-    return JSON.parse(result.stdout) as HelmRelease[];
-  } catch {
-    return [];
-  }
+  const result = await runHelm(args, token);
+  return JSON.parse(result.stdout) as HelmRelease[];
 }
