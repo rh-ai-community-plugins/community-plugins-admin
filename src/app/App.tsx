@@ -24,6 +24,10 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
     return { hasError: true };
   }
 
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo): void {
+    console.error('Community Plugins Admin error:', error, errorInfo.componentStack);
+  }
+
   render() {
     if (this.state.hasError) {
       return (
