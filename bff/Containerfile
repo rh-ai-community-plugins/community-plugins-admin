@@ -1,5 +1,6 @@
 ARG BASE_IMAGE="registry.access.redhat.com/ubi9/nodejs-22:latest"
 ARG HELM_VERSION="3.17.3"
+ARG HELM_SHA256="ee88b3c851ae6466a3de507f7be73fe94d54cbf2987cbaa3d1a3832ea331f2cd"
 
 # Build stage
 FROM ${BASE_IMAGE} AS builder
@@ -13,10 +14,14 @@ RUN npm run build
 # Helm binary stage
 FROM registry.access.redhat.com/ubi9/ubi-minimal:latest AS helm
 ARG HELM_VERSION
+ARG HELM_SHA256
 USER root
 RUN microdnf install -y tar gzip && \
     curl -fsSL "https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz" \
-      | tar -xz --strip-components=1 -C /usr/local/bin linux-amd64/helm && \
+      -o /tmp/helm.tar.gz && \
+    echo "${HELM_SHA256}  /tmp/helm.tar.gz" | sha256sum -c - && \
+    tar -xz --strip-components=1 -C /usr/local/bin -f /tmp/helm.tar.gz linux-amd64/helm && \
+    rm -f /tmp/helm.tar.gz && \
     chmod +x /usr/local/bin/helm
 
 # Production stage
