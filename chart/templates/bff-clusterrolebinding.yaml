@@ -1,8 +1,8 @@
 {{- if and .Values.bff.enabled .Values.bff.rbac.create }}
-{{- $saName := include "community-plugins-admin.bffServiceAccountName" . }}
-{{- if eq $saName "default" }}
-{{- fail "bff.rbac.create=true requires either bff.serviceAccount.create=true or bff.serviceAccount.name to be set (will not bind ClusterRole to the 'default' ServiceAccount)" }}
+{{- if and (not .Values.bff.serviceAccount.create) (not .Values.bff.serviceAccount.name) }}
+{{- fail "bff.rbac.create=true requires either bff.serviceAccount.create=true or bff.serviceAccount.name to be set" }}
 {{- end }}
+{{- $saName := include "community-plugins-admin.bffServiceAccountName" . }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
