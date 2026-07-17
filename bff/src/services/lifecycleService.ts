@@ -53,12 +53,13 @@ async function resolvePluginChart(pluginName: string): Promise<{
     throw new Error(`Plugin "${pluginName}" has no Helm chart configured`);
   }
 
-  const scope = kebabToCamelScope(pluginName);
+  const scope = metadata.remote?.spec?.scope ?? kebabToCamelScope(pluginName);
   const module = './extensions';
 
-  const remoteEntry = metadata.image?.repository
-    ? `http://${pluginName}.${pluginName}.svc.cluster.local:8080/plugin-entry.js`
-    : '';
+  const remoteEntry = metadata.remote?.spec?.remoteEntry
+    ?? (metadata.image?.repository
+      ? `http://${pluginName}.${pluginName}.svc.cluster.local:8080/plugin-entry.js`
+      : '');
 
   return { chart, repo: regEntry.repo, remoteEntry, scope, module };
 }

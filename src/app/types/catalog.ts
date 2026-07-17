@@ -23,6 +23,24 @@ export interface CatalogPluginRbac {
   clusterRoles?: boolean;
 }
 
+export interface CatalogPluginRemotePath {
+  type: string;
+  path: string;
+  extensions?: string[];
+}
+
+export interface CatalogPluginRemoteSpec {
+  name?: string;
+  scope?: string;
+  remoteEntry?: string;
+  paths?: CatalogPluginRemotePath[];
+}
+
+export interface CatalogPluginRemote {
+  type: string;
+  spec?: CatalogPluginRemoteSpec;
+}
+
 export interface PluginSupport {
   repo?: string;
   docs?: string;
@@ -49,6 +67,7 @@ export interface CatalogPlugin {
   bffImage?: PluginImage;
   install?: CatalogPluginInstall;
   rbac?: CatalogPluginRbac;
+  remote?: CatalogPluginRemote;
   support?: PluginSupport;
 }
 
