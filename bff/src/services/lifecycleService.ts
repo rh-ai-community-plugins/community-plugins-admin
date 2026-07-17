@@ -9,8 +9,8 @@ import { getPluginMetadata } from './pluginMetadataClient';
 import { getRegistryPlugins } from './charterClient';
 import { LifecycleStep, LifecycleResponse, ModuleFederationEntry } from '../types/lifecycle';
 
-function sanitizeErrorMessage(err: unknown): string {
-  const raw = sanitizeErrorMessage(err);
+export function sanitizeErrorMessage(err: unknown): string {
+  const raw = err instanceof Error ? err.message : String(err);
   return raw
     .replace(/--kube-token\s+\S+/g, '--kube-token [REDACTED]')
     .replace(/system:serviceaccount:[^\s"]+/g, '[service-account]')
