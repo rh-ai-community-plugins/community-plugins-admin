@@ -62,10 +62,6 @@ remote:
 rbac:
   cluster_roles: true
   required_roles:
-    - description: "Get and patch Deployments in redhat-ods-applications (MODULE_FEDERATION_CONFIG management)"
-      apiGroups: ["apps"]
-      resources: ["deployments"]
-      verbs: ["get", "patch"]
     - description: "Manage namespaces for plugin deployments"
       apiGroups: [""]
       resources: ["namespaces"]
@@ -74,9 +70,17 @@ rbac:
       apiGroups: ["apps"]
       resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
       verbs: ["get", "list", "create", "update", "patch", "delete"]
-    - description: "Manage Helm-deployed core resources across namespaces"
+    - description: "Manage Helm-deployed core resources across namespaces (includes Helm release secrets)"
       apiGroups: [""]
       resources: ["services", "configmaps", "secrets", "serviceaccounts", "persistentvolumeclaims"]
+      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+    - description: "Manage namespace-scoped RBAC resources created by plugin Helm charts"
+      apiGroups: ["rbac.authorization.k8s.io"]
+      resources: ["roles", "rolebindings"]
+      verbs: ["get", "list", "create", "update", "patch", "delete"]
+    - description: "Manage networking resources created by plugin Helm charts"
+      apiGroups: ["networking.k8s.io"]
+      resources: ["ingresses", "networkpolicies"]
       verbs: ["get", "list", "create", "update", "patch", "delete"]
 
 # --- Support (optional) ---

@@ -18,9 +18,7 @@ spec:
         {{- include "community-plugins-admin.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: bff
     spec:
-      {{- if .Values.bff.serviceAccount.create }}
       serviceAccountName: {{ include "community-plugins-admin.bffServiceAccountName" . }}
-      {{- end }}
       securityContext:
         {{- toYaml .Values.securityContext | nindent 8 }}
       containers:
