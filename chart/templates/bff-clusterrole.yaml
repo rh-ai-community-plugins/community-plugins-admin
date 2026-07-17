@@ -10,7 +10,7 @@ rules:
   # Manage namespaces for plugin deployments
   - apiGroups: [""]
     resources: ["namespaces"]
-    verbs: ["get", "list", "create", "delete"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
   # Manage workload resources created by plugin Helm charts
   - apiGroups: ["apps"]
     resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
