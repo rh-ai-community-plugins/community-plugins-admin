@@ -2,11 +2,27 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PluginDetailModal from '../PluginDetailModal';
 import { usePluginDetail, PluginDetailResult } from '~/app/hooks/usePluginDetail';
+import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import { CatalogPlugin } from '~/app/types/catalog';
 
 jest.mock('~/app/hooks/usePluginDetail');
+jest.mock('~/app/hooks/usePluginLifecycle');
 
 const mockUsePluginDetail = usePluginDetail as jest.MockedFunction<typeof usePluginDetail>;
+const mockUsePluginLifecycle = usePluginLifecycle as jest.MockedFunction<typeof usePluginLifecycle>;
+
+const mockLifecycle = {
+  loading: false,
+  operation: null,
+  result: null,
+  error: null,
+  install: jest.fn().mockResolvedValue({ success: true, message: 'ok', steps: [] }),
+  upgrade: jest.fn().mockResolvedValue({ success: true, message: 'ok', steps: [] }),
+  remove: jest.fn().mockResolvedValue({ success: true, message: 'ok', steps: [] }),
+  enable: jest.fn().mockResolvedValue({ success: true, message: 'ok', steps: [] }),
+  disable: jest.fn().mockResolvedValue({ success: true, message: 'ok', steps: [] }),
+  reset: jest.fn(),
+};
 
 const fullPlugin: CatalogPlugin = {
   name: 'test-plugin',
@@ -79,6 +95,7 @@ const emptyNames = new Set<string>();
 
 beforeEach(() => {
   jest.resetAllMocks();
+  mockUsePluginLifecycle.mockReturnValue({ ...mockLifecycle });
 });
 
 describe('PluginDetailModal', () => {
@@ -360,23 +377,14 @@ describe('PluginDetailModal', () => {
       expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
     });
 
-    it('action buttons are aria-disabled (stubs for Phase 6)', () => {
+    it('action buttons are enabled and clickable for admin', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
       render(
         <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
-      expect(screen.getByRole('button', { name: 'Upgrade' })).toHaveAttribute(
-        'aria-disabled',
-        'true',
-      );
-      expect(screen.getByRole('button', { name: 'Disable' })).toHaveAttribute(
-        'aria-disabled',
-        'true',
-      );
-      expect(screen.getByRole('button', { name: 'Remove' })).toHaveAttribute(
-        'aria-disabled',
-        'true',
-      );
+      expect(screen.getByRole('button', { name: 'Upgrade' })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Disable' })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Remove' })).not.toBeDisabled();
     });
 
     it('shows Close button in footer for admin', () => {
