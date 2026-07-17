@@ -125,10 +125,13 @@ export function useInstalledPlugins() {
     return () => { cancelled = true; controller.abort(); };
   }, [namesLoading, entriesKey]);
 
+  const catalogByName = useMemo(
+    () => new Map(catalogPlugins.map((p) => [p.name, p])),
+    [catalogPlugins],
+  );
+
   const installedPlugins: InstalledPlugin[] = useMemo(() => {
     if (namesLoading) return [];
-
-    const catalogByName = new Map(catalogPlugins.map((p) => [p.name, p]));
 
     return entries.map((entry) => {
       const name = scopeToKebab(entry.scope);
@@ -145,7 +148,7 @@ export function useInstalledPlugins() {
         catalogPlugin: catalogByName.get(name),
       };
     });
-  }, [namesLoading, entries, catalogPlugins, healthMap]);
+  }, [namesLoading, entries, catalogByName, healthMap]);
 
   const loading = namesLoading || catalogLoading;
   const error = namesError ?? catalogError ?? null;
