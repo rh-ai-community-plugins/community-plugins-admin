@@ -2,15 +2,24 @@ import { render, screen, fireEvent, within } from '@testing-library/react';
 import CatalogPage from '../CatalogPage';
 import { useCatalog } from '~/app/hooks/useCatalog';
 import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
+import { useCurrentUser } from '~/app/hooks/useCurrentUser';
 import { CatalogPlugin } from '~/app/types/catalog';
 
 jest.mock('~/app/hooks/useCatalog');
 jest.mock('~/app/hooks/useInstalledPluginNames');
+jest.mock('~/app/hooks/useCurrentUser');
+jest.mock('~/app/components/PluginDetailModal', () => {
+  const MockModal = ({ pluginName }: { pluginName: string | null; isAdmin: boolean }) =>
+    pluginName ? <div data-testid="plugin-detail-modal">{pluginName}</div> : null;
+  MockModal.displayName = 'MockPluginDetailModal';
+  return { __esModule: true, default: MockModal };
+});
 
 const mockUseCatalog = useCatalog as jest.MockedFunction<typeof useCatalog>;
 const mockUseInstalledPluginNames = useInstalledPluginNames as jest.MockedFunction<
   typeof useInstalledPluginNames
 >;
+const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurrentUser>;
 
 const mockPlugins: CatalogPlugin[] = [
   {
@@ -66,6 +75,7 @@ beforeEach(() => {
   jest.resetAllMocks();
   mockUseCatalog.mockReturnValue(defaultCatalogReturn);
   mockUseInstalledPluginNames.mockReturnValue(defaultInstalledReturn);
+  mockUseCurrentUser.mockReturnValue({ user: null, loading: false, error: null });
 });
 
 describe('CatalogPage', () => {
@@ -232,7 +242,7 @@ describe('CatalogPage', () => {
     render(<CatalogPage />);
     const cardButton = screen.getByLabelText('View details for Plugin Alpha');
     fireEvent.click(cardButton);
-    expect(screen.getByText('plugin-alpha')).toBeInTheDocument();
+    expect(screen.getByTestId('plugin-detail-modal')).toHaveTextContent('plugin-alpha');
   });
 
   it('filters plugins when only stable plugins match', () => {

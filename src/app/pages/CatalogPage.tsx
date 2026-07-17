@@ -40,6 +40,7 @@ import SearchIcon from '@patternfly/react-icons/dist/js/icons/search-icon';
 import CheckCircleIcon from '@patternfly/react-icons/dist/js/icons/check-circle-icon';
 import { useCatalog } from '~/app/hooks/useCatalog';
 import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
+import { useCurrentUser } from '~/app/hooks/useCurrentUser';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { CatalogPlugin } from '~/app/types/catalog';
 import { maintenanceLabelColor, maintenanceDisplayText } from '~/app/utils/maintenance';
@@ -67,6 +68,8 @@ const statusLabelColor = (status: string): 'blue' | 'green' =>
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();
   const { installedNames, loading: installedLoading, error: installedError } = useInstalledPluginNames();
+  const { user } = useCurrentUser();
+  const isAdmin = user?.isAdmin ?? false;
 
   const [searchText, setSearchText] = useState('');
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -408,6 +411,7 @@ const CatalogPage: React.FC = () => {
       </PageSection>
       <PluginDetailModal
         pluginName={selectedPlugin}
+        isAdmin={isAdmin}
         onClose={() => setSelectedPlugin(null)}
       />
     </>

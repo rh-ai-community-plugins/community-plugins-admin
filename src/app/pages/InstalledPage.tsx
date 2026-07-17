@@ -257,6 +257,7 @@ const InstalledPage: React.FC = () => {
       </PageSection>
       <PluginDetailModal
         pluginName={selectedPlugin}
+        isAdmin={isAdmin}
         onClose={() => setSelectedPlugin(null)}
       />
     </>
