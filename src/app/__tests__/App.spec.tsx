@@ -26,48 +26,54 @@ describe('App Component', () => {
     expect(screen.getByRole('main')).toBeInTheDocument();
   });
 
-  it('should catch errors and show recovery UI', () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const routerMock = jest.requireMock('react-router-dom');
-    const originalRoutes = routerMock.Routes;
-    routerMock.Routes = () => {
-      throw new Error('Test render error');
-    };
+  describe('error boundary', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let routerMock: any;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let originalRoutes: any;
+    let consoleSpy: jest.SpyInstance;
 
-    render(<App />);
+    beforeEach(() => {
+      consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      routerMock = jest.requireMock('react-router-dom');
+      originalRoutes = routerMock.Routes;
+    });
 
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    afterEach(() => {
+      routerMock.Routes = originalRoutes;
+      consoleSpy.mockRestore();
+    });
 
-    routerMock.Routes = originalRoutes;
-    consoleSpy.mockRestore();
-  });
-
-  it('should reset error boundary when Try again is clicked', async () => {
-    const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    const routerMock = jest.requireMock('react-router-dom');
-    const originalRoutes = routerMock.Routes;
-
-    let shouldThrow = true;
-    routerMock.Routes = ({ children }: { children: React.ReactNode }) => {
-      if (shouldThrow) {
+    it('should catch errors and show recovery UI', () => {
+      routerMock.Routes = () => {
         throw new Error('Test render error');
-      }
-      return <div data-testid="routes-recovered">{children}</div>;
-    };
+      };
 
-    render(<App />);
+      render(<App />);
 
-    expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+      expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument();
+    });
 
-    shouldThrow = false;
+    it('should reset error boundary when Try again is clicked', async () => {
+      let shouldThrow = true;
+      routerMock.Routes = ({ children }: { children: React.ReactNode }) => {
+        if (shouldThrow) {
+          throw new Error('Test render error');
+        }
+        return <div data-testid="routes-recovered">{children}</div>;
+      };
 
-    await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      render(<App />);
 
-    expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
-    expect(screen.getByTestId('routes-recovered')).toBeInTheDocument();
+      expect(screen.getByText('Something went wrong')).toBeInTheDocument();
 
-    routerMock.Routes = originalRoutes;
-    consoleSpy.mockRestore();
+      shouldThrow = false;
+
+      await userEvent.click(screen.getByRole('button', { name: 'Try again' }));
+
+      expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
+      expect(screen.getByTestId('routes-recovered')).toBeInTheDocument();
+    });
   });
 });

@@ -319,18 +319,21 @@ describe('InstalledPage', () => {
     });
 
     const mockNavigate = jest.fn();
-    const routerMock = jest.requireMock('react-router-dom');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const routerMock = jest.requireMock('react-router-dom') as any;
     const originalUseNavigate = routerMock.useNavigate;
     routerMock.useNavigate = () => mockNavigate;
 
-    render(<InstalledPage />);
+    try {
+      render(<InstalledPage />);
 
-    const browseCatalogBtn = screen.getByRole('button', { name: 'Browse Catalog' });
-    expect(browseCatalogBtn).toBeInTheDocument();
-    await userEvent.click(browseCatalogBtn);
-    expect(mockNavigate).toHaveBeenCalledWith('../catalog');
-
-    routerMock.useNavigate = originalUseNavigate;
+      const browseCatalogBtn = screen.getByRole('button', { name: 'Browse Catalog' });
+      expect(browseCatalogBtn).toBeInTheDocument();
+      await userEvent.click(browseCatalogBtn);
+      expect(mockNavigate).toHaveBeenCalledWith('../catalog');
+    } finally {
+      routerMock.useNavigate = originalUseNavigate;
+    }
   });
 
   it('opens plugin detail modal when row is clicked', () => {
