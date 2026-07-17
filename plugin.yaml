@@ -1,7 +1,10 @@
 # --- Plugin identity (required) ---
 name: community-plugins-admin                    # [PLUGIN-SPECIFIC] unique plugin identifier (kebab-case)
 displayName: Community Plugins Admin             # [PLUGIN-SPECIFIC] human-readable name
-description: Discover, install, upgrade, and manage community plugins for the RHOAI Dashboard
+description: >-
+  Discover, install, upgrade, remove, enable, and disable community plugins
+  for the RHOAI Dashboard. Browse the community plugin catalog, view detailed
+  plugin metadata, and manage the full plugin lifecycle from the dashboard UI.
 version: 0.1.0
 
 # --- Maintainer (required) ---
@@ -53,12 +56,28 @@ remote:
         path: communityPluginsAdmin/Icon         # [PLUGIN-SPECIFIC] {scope}/Icon
 
 # --- RBAC (required) ---
-# NOTE: Admins who install, upgrade, or remove plugins need permissions to
-# modify the MODULE_FEDERATION_CONFIG env var on the rhods-dashboard deployment
-# and manage plugin namespaces. Non-admin users can browse the catalog read-only.
+# The BFF ServiceAccount needs cluster-level permissions to manage plugin
+# lifecycle operations. Admin users who trigger these operations must also
+# have appropriate permissions (the BFF forwards their Bearer token).
 rbac:
-  required_roles: []
-  cluster_roles: false
+  cluster_roles: true
+  required_roles:
+    - description: "Get and patch Deployments in redhat-ods-applications (MODULE_FEDERATION_CONFIG management)"
+      apiGroups: ["apps"]
+      resources: ["deployments"]
+      verbs: ["get", "patch"]
+    - description: "Manage namespaces for plugin deployments"
+      apiGroups: [""]
+      resources: ["namespaces"]
+      verbs: ["get", "list", "create", "delete"]
+    - description: "Manage Helm-deployed workload resources across namespaces"
+      apiGroups: ["apps"]
+      resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+      verbs: ["get", "list", "create", "update", "patch", "delete"]
+    - description: "Manage Helm-deployed core resources across namespaces"
+      apiGroups: [""]
+      resources: ["services", "configmaps", "secrets", "serviceaccounts", "persistentvolumeclaims"]
+      verbs: ["get", "list", "create", "update", "patch", "delete"]
 
 # --- Support (optional) ---
 support:

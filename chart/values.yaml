@@ -62,6 +62,7 @@ bff:
   serviceAccount:
     create: true
     annotations: {}
+    name: ""
   service:
     type: ClusterIP
     port: 3000
@@ -73,3 +74,14 @@ bff:
     requests:
       cpu: 100m
       memory: 128Mi
+  # RBAC for plugin lifecycle operations (install, upgrade, remove)
+  rbac:
+    create: true
+  # Charter registry URL (source of available plugins)
+  charterRegistryUrl: "https://raw.githubusercontent.com/rh-ai-community-plugins/charter/dev/plugins.yaml"
+  # Cache TTL settings (milliseconds)
+  cache:
+    charterTtlMs: 300000
+    pluginTtlMs: 300000
+  # Max concurrent plugin.yaml fetches
+  pluginFetchConcurrency: 5

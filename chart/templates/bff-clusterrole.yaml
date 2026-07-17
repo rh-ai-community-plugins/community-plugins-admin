@@ -1,0 +1,36 @@
+{{- if and .Values.bff.enabled .Values.bff.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "community-plugins-admin.fullname" . }}-bff
+  labels:
+    {{- include "community-plugins-admin.labels" . | nindent 4 }}
+    app.kubernetes.io/component: bff
+rules:
+  # Read and patch the rhods-dashboard Deployment to manage MODULE_FEDERATION_CONFIG
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+  # List and manage namespaces for plugin deployments
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "create", "delete"]
+  # Manage resources typically created by Helm charts (plugin deployments)
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "configmaps", "secrets", "serviceaccounts", "persistentvolumeclaims"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: ["roles", "rolebindings", "clusterroles", "clusterrolebindings"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses", "networkpolicies"]
+    verbs: ["get", "list", "create", "update", "patch", "delete"]
+  # Helm stores release state in Secrets
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: []
+    verbs: ["get", "list", "watch"]
+{{- end }}
