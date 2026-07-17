@@ -56,8 +56,10 @@ const defaultCatalogReturn = {
 
 const defaultInstalledReturn = {
   installedNames: new Set(['plugin-alpha']),
+  entries: [],
   loading: false,
   error: null,
+  refetch: jest.fn(),
 };
 
 beforeEach(() => {
@@ -91,9 +93,9 @@ describe('CatalogPage', () => {
 
   it('shows loading spinner when installedNames is still loading (race condition guard)', () => {
     mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
       installedNames: new Set(),
       loading: true,
-      error: null,
     });
     render(<CatalogPage />);
     expect(screen.getByLabelText('Loading catalog')).toBeInTheDocument();
@@ -281,8 +283,8 @@ describe('CatalogPage', () => {
 
   it('shows warning alert when installedError is set', () => {
     mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
       installedNames: new Set(),
-      loading: false,
       error: 'Failed to fetch dashboard deployment: 403',
     });
     render(<CatalogPage />);
@@ -294,8 +296,8 @@ describe('CatalogPage', () => {
 
   it('still renders the catalog when installedError is set — warning is non-blocking', () => {
     mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
       installedNames: new Set(),
-      loading: false,
       error: 'Failed to fetch dashboard deployment: 500',
     });
     render(<CatalogPage />);
