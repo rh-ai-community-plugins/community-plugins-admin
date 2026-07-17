@@ -11,7 +11,8 @@ jest.mock('../src/services/k8sApiClient');
 
 const mockK8sRequest = k8sRequest as jest.MockedFunction<typeof k8sRequest>;
 
-const deploymentWithConfig = (configValue: string) => ({
+const deploymentWithConfig = (configValue: string, resourceVersion?: string) => ({
+  ...(resourceVersion !== undefined && { metadata: { resourceVersion } }),
   spec: {
     template: {
       spec: {
@@ -180,6 +181,80 @@ describe('addPluginToConfig', () => {
     const duplicate = { scope: 'communityPluginsAdmin', module: './extensions', remoteEntry: 'http://svc:8080/remoteEntry.js' };
     await expect(addPluginToConfig('test-token', duplicate)).rejects.toThrow('already in');
   });
+
+  it('includes resourceVersion test op as the first patch operation', async () => {
+    mockK8sRequest.mockResolvedValue({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(sampleEntries), '42'),
+    });
+
+    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    await addPluginToConfig('test-token', newEntry);
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    expect(patchCall).toBeDefined();
+    const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
+    // First op must be the resourceVersion test for optimistic concurrency
+    expect(patchBody[0]).toEqual({ op: 'test', path: '/metadata/resourceVersion', value: '42' });
+    // Second op is the actual mutation
+    expect(patchBody[1].op).toBe('replace');
+  });
+
+  it('omits the resourceVersion test op when the deployment has no resourceVersion', async () => {
+    // Deployment with no metadata.resourceVersion — no test op should be added
+    mockK8sRequest.mockResolvedValue({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(sampleEntries)),
+    });
+
+    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    await addPluginToConfig('test-token', newEntry);
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    expect(patchCall).toBeDefined();
+    const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
+    // Only the mutation op should be present (no test op)
+    expect(patchBody).toHaveLength(1);
+    expect(patchBody[0].op).toBe('replace');
+  });
+
+  it('retries on 409 Conflict and succeeds on the second attempt', async () => {
+    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+
+    // Attempt 1: GET succeeds with resourceVersion '1', PATCH returns 409
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(sampleEntries), '1'),
+    });
+    mockK8sRequest.mockResolvedValueOnce({ status: 409, body: {} });
+    // Attempt 2: GET succeeds with updated resourceVersion '2', PATCH returns 200
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(sampleEntries), '2'),
+    });
+    mockK8sRequest.mockResolvedValueOnce({ status: 200, body: {} });
+
+    await expect(addPluginToConfig('test-token', newEntry)).resolves.toBeUndefined();
+    // Two GET + two PATCH calls across the two attempts
+    expect(mockK8sRequest).toHaveBeenCalledTimes(4);
+  });
+
+  it('throws after exhausting all retries on repeated 409 Conflict', async () => {
+    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+
+    // Each of the 3 attempts: GET → 200, PATCH → 409
+    for (let i = 0; i < 3; i++) {
+      mockK8sRequest.mockResolvedValueOnce({
+        status: 200,
+        body: deploymentWithConfig(JSON.stringify(sampleEntries), String(i + 1)),
+      });
+      mockK8sRequest.mockResolvedValueOnce({ status: 409, body: {} });
+    }
+
+    await expect(addPluginToConfig('test-token', newEntry)).rejects.toThrow('409');
+    // 3 attempts × (1 GET + 1 PATCH) = 6 calls total
+    expect(mockK8sRequest).toHaveBeenCalledTimes(6);
+  });
 });
 
 describe('removePluginFromConfig', () => {
@@ -253,5 +328,39 @@ describe('removePluginFromConfig', () => {
     });
 
     await expect(removePluginFromConfig('test-token', 'nonexistent')).rejects.toThrow('not found');
+  });
+
+  it('retries on 409 Conflict and succeeds on the second attempt', async () => {
+    // Attempt 1: GET succeeds with resourceVersion '1', PATCH returns 409
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(sampleEntries), '1'),
+    });
+    mockK8sRequest.mockResolvedValueOnce({ status: 409, body: {} });
+    // Attempt 2: GET succeeds with updated resourceVersion '2', PATCH returns 200
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(sampleEntries), '2'),
+    });
+    mockK8sRequest.mockResolvedValueOnce({ status: 200, body: {} });
+
+    await expect(removePluginFromConfig('test-token', 'community-plugins-admin')).resolves.toBeUndefined();
+    // Two GET + two PATCH calls across the two attempts
+    expect(mockK8sRequest).toHaveBeenCalledTimes(4);
+  });
+
+  it('throws after exhausting all retries on repeated 409 Conflict', async () => {
+    // Each of the 3 attempts: GET → 200, PATCH → 409
+    for (let i = 0; i < 3; i++) {
+      mockK8sRequest.mockResolvedValueOnce({
+        status: 200,
+        body: deploymentWithConfig(JSON.stringify(sampleEntries), String(i + 1)),
+      });
+      mockK8sRequest.mockResolvedValueOnce({ status: 409, body: {} });
+    }
+
+    await expect(removePluginFromConfig('test-token', 'community-plugins-admin')).rejects.toThrow('409');
+    // 3 attempts × (1 GET + 1 PATCH) = 6 calls total
+    expect(mockK8sRequest).toHaveBeenCalledTimes(6);
   });
 });
