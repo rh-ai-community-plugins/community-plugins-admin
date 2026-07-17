@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   ModalBody,
@@ -20,10 +20,10 @@ import {
   Bullseye,
   Split,
   SplitItem,
-  Tooltip,
 } from '@patternfly/react-core';
 import ExternalLinkAltIcon from '@patternfly/react-icons/dist/js/icons/external-link-alt-icon';
 import { usePluginDetail } from '~/app/hooks/usePluginDetail';
+import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import { CatalogPlugin } from '~/app/types/catalog';
 import {
   maintenanceLabelColor,
@@ -31,6 +31,8 @@ import {
   statusLabelColor,
   deploymentModelLabel,
 } from '~/app/utils/maintenance';
+import ConfirmRemoveModal from '~/app/components/ConfirmRemoveModal';
+import LifecycleProgressModal from '~/app/components/LifecycleProgressModal';
 
 interface PluginDetailModalProps {
   pluginName: string | null;
@@ -38,6 +40,7 @@ interface PluginDetailModalProps {
   installedNames: Set<string>;
   installedLoading: boolean;
   onClose: () => void;
+  onLifecycleComplete?: () => void;
 }
 
 const isSafeUrl = (url: string): boolean => {
@@ -67,7 +70,13 @@ const PluginDetailContent: React.FC<{
   installed: boolean;
   isAdmin: boolean;
   onClose: () => void;
-}> = ({ plugin, installed, isAdmin, onClose }) => {
+  onInstall: () => void;
+  onUpgrade: () => void;
+  onRemove: () => void;
+  onEnable: () => void;
+  onDisable: () => void;
+  lifecycleLoading: boolean;
+}> = ({ plugin, installed, isAdmin, onClose, onInstall, onUpgrade, onRemove, onEnable, onDisable, lifecycleLoading }) => {
   const displayName = plugin.displayName ?? plugin.name;
 
   return (
@@ -307,39 +316,73 @@ const PluginDetailContent: React.FC<{
       </ModalBody>
       <ModalFooter>
         <Flex gap={{ default: 'gapSm' }}>
-          {isAdmin && !installed && (
+          {isAdmin && !installed && plugin.install?.method === 'automatic' && (
             <FlexItem>
-              <Tooltip content="Install is not yet available">
-                <Button variant="primary" isAriaDisabled>
-                  Install
-                </Button>
-              </Tooltip>
+              <Button
+                variant="primary"
+                onClick={onInstall}
+                isDisabled={lifecycleLoading}
+                isLoading={lifecycleLoading}
+              >
+                Install
+              </Button>
+            </FlexItem>
+          )}
+          {isAdmin && !installed && plugin.install?.method === 'assisted' && (
+            <FlexItem>
+              <Button
+                variant="primary"
+                onClick={onInstall}
+                isDisabled={lifecycleLoading}
+                isLoading={lifecycleLoading}
+              >
+                Install (Assisted)
+              </Button>
             </FlexItem>
           )}
           {isAdmin && installed && (
             <>
               <FlexItem>
-                <Tooltip content="Upgrade is not yet available">
-                  <Button variant="primary" isAriaDisabled>
-                    Upgrade
-                  </Button>
-                </Tooltip>
+                <Button
+                  variant="primary"
+                  onClick={onUpgrade}
+                  isDisabled={lifecycleLoading}
+                >
+                  Upgrade
+                </Button>
               </FlexItem>
               <FlexItem>
-                <Tooltip content="Enable/Disable is not yet available">
-                  <Button variant="secondary" isAriaDisabled>
-                    Disable
-                  </Button>
-                </Tooltip>
+                <Button
+                  variant="secondary"
+                  onClick={onDisable}
+                  isDisabled={lifecycleLoading}
+                >
+                  Disable
+                </Button>
               </FlexItem>
               <FlexItem>
-                <Tooltip content="Remove is not yet available">
-                  <Button variant="danger" isAriaDisabled>
-                    Remove
-                  </Button>
-                </Tooltip>
+                <Button
+                  variant="danger"
+                  onClick={onRemove}
+                  isDisabled={lifecycleLoading}
+                >
+                  Remove
+                </Button>
               </FlexItem>
             </>
+          )}
+          {isAdmin && !installed && plugin.install?.method === 'manual' && plugin.install.instructions && (
+            <FlexItem>
+              <Button
+                variant="primary"
+                component="a"
+                href={plugin.install.instructions}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                View install instructions
+              </Button>
+            </FlexItem>
           )}
           <FlexItem>
             <Button variant="link" onClick={onClose}>
@@ -358,50 +401,115 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
   installedNames,
   installedLoading,
   onClose,
+  onLifecycleComplete,
 }) => {
   const { plugin, installed, loading, error } = usePluginDetail(pluginName, installedNames, installedLoading);
+  const lifecycle = usePluginLifecycle();
+
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
+
+  const handleLifecycleComplete = () => {
+    setShowProgress(false);
+    lifecycle.reset();
+    onLifecycleComplete?.();
+  };
+
+  const handleInstall = async () => {
+    if (!pluginName) return;
+    setShowProgress(true);
+    await lifecycle.install(pluginName);
+  };
+
+  const handleUpgrade = async () => {
+    if (!pluginName) return;
+    setShowProgress(true);
+    await lifecycle.upgrade(pluginName);
+  };
+
+  const handleRemoveConfirm = async (deleteNamespace: boolean) => {
+    if (!pluginName) return;
+    setShowRemoveConfirm(false);
+    setShowProgress(true);
+    await lifecycle.remove(pluginName, deleteNamespace);
+  };
+
+  const handleEnable = async () => {
+    if (!pluginName) return;
+    setShowProgress(true);
+    await lifecycle.enable(pluginName);
+  };
+
+  const handleDisable = async () => {
+    if (!pluginName) return;
+    setShowProgress(true);
+    await lifecycle.disable(pluginName);
+  };
 
   return (
-    <Modal isOpen={!!pluginName} onClose={onClose} variant="large" aria-label="Plugin details">
-      {loading && (
-        <>
-          <ModalHeader title={pluginName ?? ''} />
-          <ModalBody>
-            <Bullseye>
-              <Spinner aria-label="Loading plugin details" />
-            </Bullseye>
-          </ModalBody>
-        </>
-      )}
-      {!loading && error && (
-        <>
-          <ModalHeader title={pluginName ?? ''} />
-          <ModalBody>
-            <Alert variant="danger" title="Failed to load plugin details" isInline>
-              {error}
-            </Alert>
-          </ModalBody>
-        </>
-      )}
-      {!loading && !error && plugin && (
-        <PluginDetailContent
-          plugin={plugin}
-          installed={installed}
-          isAdmin={isAdmin}
-          onClose={onClose}
-        />
-      )}
-      {!loading && !error && !plugin && pluginName && (
-        <>
-          <ModalHeader title={pluginName ?? ''} />
-          <ModalBody>
-            <Bullseye>
-              <Spinner aria-label="Loading plugin details" />
-            </Bullseye>
-          </ModalBody>
-        </>
-      )}
-    </Modal>
+    <>
+      <Modal isOpen={!!pluginName} onClose={onClose} variant="large" aria-label="Plugin details">
+        {loading && (
+          <>
+            <ModalHeader title={pluginName ?? ''} />
+            <ModalBody>
+              <Bullseye>
+                <Spinner aria-label="Loading plugin details" />
+              </Bullseye>
+            </ModalBody>
+          </>
+        )}
+        {!loading && error && (
+          <>
+            <ModalHeader title={pluginName ?? ''} />
+            <ModalBody>
+              <Alert variant="danger" title="Failed to load plugin details" isInline>
+                {error}
+              </Alert>
+            </ModalBody>
+          </>
+        )}
+        {!loading && !error && plugin && (
+          <PluginDetailContent
+            plugin={plugin}
+            installed={installed}
+            isAdmin={isAdmin}
+            onClose={onClose}
+            onInstall={handleInstall}
+            onUpgrade={handleUpgrade}
+            onRemove={() => setShowRemoveConfirm(true)}
+            onEnable={handleEnable}
+            onDisable={handleDisable}
+            lifecycleLoading={lifecycle.loading}
+          />
+        )}
+        {!loading && !error && !plugin && pluginName && (
+          <>
+            <ModalHeader title={pluginName ?? ''} />
+            <ModalBody>
+              <Bullseye>
+                <Spinner aria-label="Loading plugin details" />
+              </Bullseye>
+            </ModalBody>
+          </>
+        )}
+      </Modal>
+      <ConfirmRemoveModal
+        pluginName={pluginName}
+        isOpen={showRemoveConfirm}
+        isLoading={lifecycle.loading}
+        onConfirm={handleRemoveConfirm}
+        onCancel={() => setShowRemoveConfirm(false)}
+      />
+      <LifecycleProgressModal
+        isOpen={showProgress}
+        operation={lifecycle.operation}
+        steps={lifecycle.result?.steps ?? []}
+        success={lifecycle.loading ? null : lifecycle.result?.success ?? null}
+        message={lifecycle.result?.message ?? null}
+        onClose={handleLifecycleComplete}
+      />
+    </>
   );
 };
 

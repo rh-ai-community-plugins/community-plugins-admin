@@ -412,6 +412,7 @@ const CatalogPage: React.FC = () => {
         installedNames={installedNames}
         installedLoading={installedLoading}
         onClose={() => setSelectedPlugin(null)}
+        onLifecycleComplete={refetch}
       />
     </>
   );
