@@ -1,18 +1,27 @@
 import { helmInstall, helmUpgrade, helmUninstall, validateHelmValues } from '../src/services/helmService';
 import { execFile } from 'child_process';
+import * as fs from 'fs';
 import { getK8sBaseUrl } from '../src/utils/k8sClient';
 
 jest.mock('child_process');
+jest.mock('fs');
 jest.mock('../src/utils/k8sClient');
 
 const mockExecFile = execFile as unknown as jest.MockedFunction<
   (cmd: string, args: string[], opts: unknown, cb: (err: Error | null, stdout: string, stderr: string) => void) => void
 >;
+const mockFs = fs as jest.Mocked<typeof fs>;
 const mockGetK8sBaseUrl = getK8sBaseUrl as jest.MockedFunction<typeof getK8sBaseUrl>;
+
+const FAKE_TMP_DIR = '/tmp/helm-abc123';
+const FAKE_KUBECONFIG = `${FAKE_TMP_DIR}/kubeconfig`;
 
 beforeEach(() => {
   jest.resetAllMocks();
   mockGetK8sBaseUrl.mockReturnValue('https://k8s.example.com:6443');
+  mockFs.mkdtempSync.mockReturnValue(FAKE_TMP_DIR);
+  mockFs.writeFileSync.mockImplementation(() => undefined);
+  mockFs.rmSync.mockImplementation(() => undefined);
 });
 
 describe('validateHelmValues', () => {
@@ -42,7 +51,7 @@ describe('validateHelmValues', () => {
 });
 
 describe('helmInstall', () => {
-  it('calls execFile with correct args including --kube-token', async () => {
+  it('passes --kubeconfig instead of --kube-token', async () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
       cb(null, '{"name":"test"}', '');
       return undefined as never;
@@ -51,17 +60,72 @@ describe('helmInstall', () => {
     await helmInstall('my-plugin', 'oci://quay.io/charts/plugin', 'my-ns', 'user-token');
 
     const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args).not.toContain('--kube-token');
+    expect(args).not.toContain('user-token');
+    expect(args).toContain('--kubeconfig');
+    expect(args).toContain(FAKE_KUBECONFIG);
     expect(args).toContain('install');
     expect(args).toContain('my-plugin');
     expect(args).toContain('oci://quay.io/charts/plugin');
     expect(args).toContain('--namespace');
     expect(args).toContain('my-ns');
-    expect(args).toContain('--kube-token');
-    expect(args).toContain('user-token');
     expect(args).toContain('--kube-apiserver');
     expect(args).toContain('https://k8s.example.com:6443');
     expect(args).toContain('--create-namespace');
     expect(args).toContain('--wait');
+  });
+
+  it('writes kubeconfig with token to temp file (mode 0o600)', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'user-token');
+
+    expect(mockFs.writeFileSync).toHaveBeenCalledWith(
+      FAKE_KUBECONFIG,
+      expect.stringContaining('token: "user-token"'),
+      { mode: 0o600 },
+    );
+  });
+
+  it('sets HELM env vars to per-invocation subdirs of the temp dir', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'token');
+
+    const opts = mockExecFile.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
+    expect(opts.env).toMatchObject({
+      HELM_CACHE_HOME: `${FAKE_TMP_DIR}/cache`,
+      HELM_CONFIG_HOME: `${FAKE_TMP_DIR}/config`,
+      HELM_DATA_HOME: `${FAKE_TMP_DIR}/data`,
+    });
+  });
+
+  it('cleans up the temp directory after a successful run', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'token');
+
+    expect(mockFs.rmSync).toHaveBeenCalledWith(FAKE_TMP_DIR, { recursive: true, force: true });
+  });
+
+  it('cleans up the temp directory when helm fails', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(new Error('helm not found'), '', 'command not found');
+      return undefined as never;
+    });
+
+    await expect(helmInstall('p', 'c', 'n', 't')).rejects.toThrow('Helm command failed');
+
+    expect(mockFs.rmSync).toHaveBeenCalledWith(FAKE_TMP_DIR, { recursive: true, force: true });
   });
 
   it('includes --set flags for values', async () => {
@@ -88,7 +152,7 @@ describe('helmInstall', () => {
 });
 
 describe('helmUpgrade', () => {
-  it('calls execFile with upgrade command', async () => {
+  it('calls execFile with upgrade command and kubeconfig', async () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
       cb(null, '{}', '');
       return undefined as never;
@@ -99,11 +163,26 @@ describe('helmUpgrade', () => {
     const args = mockExecFile.mock.calls[0][1] as string[];
     expect(args).toContain('upgrade');
     expect(args).toContain('my-plugin');
+    expect(args).not.toContain('--kube-token');
+    expect(args).not.toContain('token');
+    expect(args).toContain('--kubeconfig');
+    expect(args).toContain(FAKE_KUBECONFIG);
+  });
+
+  it('cleans up the temp directory after a successful run', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmUpgrade('my-plugin', 'chart', 'ns', 'token');
+
+    expect(mockFs.rmSync).toHaveBeenCalledWith(FAKE_TMP_DIR, { recursive: true, force: true });
   });
 });
 
 describe('helmUninstall', () => {
-  it('calls execFile with uninstall command', async () => {
+  it('calls execFile with uninstall command and kubeconfig', async () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
       cb(null, 'release uninstalled', '');
       return undefined as never;
@@ -116,5 +195,19 @@ describe('helmUninstall', () => {
     expect(args).toContain('my-plugin');
     expect(args).toContain('--namespace');
     expect(args).toContain('ns');
+    expect(args).not.toContain('--kube-token');
+    expect(args).toContain('--kubeconfig');
+    expect(args).toContain(FAKE_KUBECONFIG);
+  });
+
+  it('cleans up the temp directory after a successful run', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, 'release uninstalled', '');
+      return undefined as never;
+    });
+
+    await helmUninstall('my-plugin', 'ns', 'token');
+
+    expect(mockFs.rmSync).toHaveBeenCalledWith(FAKE_TMP_DIR, { recursive: true, force: true });
   });
 });
