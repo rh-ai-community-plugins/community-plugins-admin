@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { getRegistryPlugins } from '../services/charterClient';
 import { getAllPluginMetadata, getPluginMetadata, clearPluginCache } from '../services/pluginMetadataClient';
-import { CatalogPlugin, CatalogPluginInstall, CatalogPluginRbac, PluginMetadata, RegistryPlugin } from '../types/catalog';
+import { CatalogPlugin, CatalogPluginInstall, CatalogPluginRbac, CatalogPluginRemote, PluginMetadata, RegistryPlugin } from '../types/catalog';
 
 const router = Router();
 
@@ -40,6 +40,21 @@ function buildCatalogPlugin(
     };
   }
 
+  let remote: CatalogPluginRemote | undefined;
+  if (metadata.remote) {
+    remote = {
+      type: metadata.remote.type,
+      spec: metadata.remote.spec
+        ? {
+            name: metadata.remote.spec.name,
+            scope: metadata.remote.spec.scope,
+            remoteEntry: metadata.remote.spec.remoteEntry,
+            paths: metadata.remote.spec.paths,
+          }
+        : undefined,
+    };
+  }
+
   return {
     ...base,
     displayName: metadata.displayName,
@@ -57,6 +72,7 @@ function buildCatalogPlugin(
     bffImage: metadata.bff_image,
     install,
     rbac,
+    remote,
     support: metadata.support,
   };
 }

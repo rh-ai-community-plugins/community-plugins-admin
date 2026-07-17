@@ -38,9 +38,13 @@ import {
 import FilterIcon from '@patternfly/react-icons/dist/js/icons/filter-icon';
 import SearchIcon from '@patternfly/react-icons/dist/js/icons/search-icon';
 import CheckCircleIcon from '@patternfly/react-icons/dist/js/icons/check-circle-icon';
+import BanIcon from '@patternfly/react-icons/dist/js/icons/ban-icon';
+import ArrowCircleUpIcon from '@patternfly/react-icons/dist/js/icons/arrow-circle-up-icon';
 import { useCatalog } from '~/app/hooks/useCatalog';
 import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
+import { useHelmReleasedPlugins } from '~/app/hooks/useHelmReleasedPlugins';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
+import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { CatalogPlugin } from '~/app/types/catalog';
 import { maintenanceLabelColor, maintenanceDisplayText, statusLabelColor, deploymentModelLabel } from '~/app/utils/maintenance';
@@ -59,14 +63,17 @@ const MAINTENANCE_OPTIONS = [
 
 const INSTALL_STATE_OPTIONS = [
   { value: 'installed', label: 'Installed' },
+  { value: 'disabled', label: 'Disabled' },
   { value: 'available', label: 'Available' },
 ];
 
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();
-  const { installedNames, loading: installedLoading, error: installedError } = useInstalledPluginNames();
+  const { installedNames, loading: installedLoading, error: installedError, refetch: installedRefetch } = useInstalledPluginNames();
+  const { helmInstalledNames, helmVersionMap, loading: helmLoading, error: helmError, refetch: helmRefetch } = useHelmReleasedPlugins();
   const { user } = useCurrentUser();
   const isAdmin = user?.isAdmin ?? false;
+  const lifecycle = usePluginLifecycle();
 
   const [searchText, setSearchText] = useState('');
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -95,14 +102,16 @@ const CatalogPage: React.FC = () => {
         maintenanceFilters.includes(p.maintenance);
 
       const isInstalled = installedNames.has(p.name);
+      const isDisabled = helmInstalledNames.has(p.name) && !isInstalled;
       const matchesInstallState =
         installStateFilters.length === 0 ||
         (installStateFilters.includes('installed') && isInstalled) ||
-        (installStateFilters.includes('available') && !isInstalled);
+        (installStateFilters.includes('disabled') && isDisabled) ||
+        (installStateFilters.includes('available') && !isInstalled && !isDisabled);
 
       return matchesSearch && matchesStatus && matchesMaintenance && matchesInstallState;
     });
-  }, [plugins, searchText, statusFilters, maintenanceFilters, installStateFilters, installedNames]);
+  }, [plugins, searchText, statusFilters, maintenanceFilters, installStateFilters, installedNames, helmInstalledNames]);
 
   const onDeleteFilter = (category: FilterKey, chip: string) => {
     switch (category) {
@@ -262,7 +271,12 @@ const CatalogPage: React.FC = () => {
           </ToolbarGroup>
         </ToolbarToggleGroup>
         <ToolbarItem>
-          <Button variant="plain" onClick={refetch} aria-label="Refresh catalog" isDisabled={isRefetching}>
+          <Button
+            variant="plain"
+            onClick={() => { refetch(); installedRefetch(); helmRefetch(); }}
+            aria-label="Refresh catalog"
+            isDisabled={isRefetching}
+          >
             Refresh
           </Button>
           {isRefetching && (
@@ -275,6 +289,12 @@ const CatalogPage: React.FC = () => {
 
   const renderPluginCard = (plugin: CatalogPlugin) => {
     const isInstalled = installedNames.has(plugin.name);
+    const isDisabled = helmInstalledNames.has(plugin.name) && !isInstalled;
+    const installedVersion = helmVersionMap.get(plugin.name);
+    const hasUpdate =
+      installedVersion !== undefined &&
+      plugin.version !== undefined &&
+      installedVersion !== plugin.version;
     const displayName = plugin.displayName ?? plugin.name;
     return (
       <GalleryItem key={plugin.name}>
@@ -300,6 +320,13 @@ const CatalogPage: React.FC = () => {
                   </Label>
                 </FlexItem>
               )}
+              {isDisabled && (
+                <FlexItem>
+                  <Label color="orange" icon={<BanIcon />} isCompact>
+                    Disabled
+                  </Label>
+                </FlexItem>
+              )}
             </Flex>
           </CardHeader>
           <CardBody>
@@ -316,6 +343,13 @@ const CatalogPage: React.FC = () => {
             {plugin.version && (
               <div className="pf-v6-u-mb-sm pf-v6-u-font-size-sm" style={{ color: 'var(--pf-t--global--text--color--subtle)' }}>
                 Version {plugin.version}
+              </div>
+            )}
+            {hasUpdate && (
+              <div className="pf-v6-u-mb-sm">
+                <Label color="blue" icon={<ArrowCircleUpIcon />} isCompact>
+                  Update available: {installedVersion} → {plugin.version}
+                </Label>
               </div>
             )}
           </CardBody>
@@ -339,7 +373,7 @@ const CatalogPage: React.FC = () => {
     );
   };
 
-  if (loading || installedLoading) {
+  if (loading || installedLoading || helmLoading) {
     return (
       <PageSection>
         <Bullseye>
@@ -368,14 +402,14 @@ const CatalogPage: React.FC = () => {
         <Title headingLevel="h1" className="pf-v6-u-mb-md">
           Catalog
         </Title>
-        {installedError && (
+        {(installedError || helmError) && (
           <Alert
             variant="warning"
             title="Unable to determine installed plugin status"
             isInline
             className="pf-v6-u-mb-md"
           >
-            Install badges may be incomplete.
+            Install and disabled badges may be incomplete.
           </Alert>
         )}
         {toolbar}
@@ -411,7 +445,10 @@ const CatalogPage: React.FC = () => {
         isAdmin={isAdmin}
         installedNames={installedNames}
         installedLoading={installedLoading}
+        helmInstalledNames={helmInstalledNames}
+        lifecycle={lifecycle}
         onClose={() => setSelectedPlugin(null)}
+        onLifecycleComplete={() => { refetch(); installedRefetch(); helmRefetch(); }}
       />
     </>
   );

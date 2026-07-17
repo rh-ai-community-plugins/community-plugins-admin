@@ -42,6 +42,24 @@ export interface PluginRbac {
   cluster_roles?: boolean;
 }
 
+export interface PluginRemotePath {
+  type: string;
+  path: string;
+  extensions?: string[];
+}
+
+export interface PluginRemoteSpec {
+  name?: string;
+  scope?: string;
+  remoteEntry?: string;
+  paths?: PluginRemotePath[];
+}
+
+export interface PluginRemote {
+  type: string;
+  spec?: PluginRemoteSpec;
+}
+
 export interface PluginMetadata {
   name: string;
   displayName?: string;
@@ -57,7 +75,26 @@ export interface PluginMetadata {
   bff_image?: PluginImage;
   install?: PluginInstall;
   rbac?: PluginRbac;
+  remote?: PluginRemote;
   support?: PluginSupport;
+}
+
+export interface CatalogPluginRemotePath {
+  type: string;
+  path: string;
+  extensions?: string[];
+}
+
+export interface CatalogPluginRemoteSpec {
+  name?: string;
+  scope?: string;
+  remoteEntry?: string;
+  paths?: CatalogPluginRemotePath[];
+}
+
+export interface CatalogPluginRemote {
+  type: string;
+  spec?: CatalogPluginRemoteSpec;
 }
 
 export interface CatalogPluginInstall {
@@ -95,5 +132,6 @@ export interface CatalogPlugin {
   bffImage?: PluginImage;
   install?: CatalogPluginInstall;
   rbac?: CatalogPluginRbac;
+  remote?: CatalogPluginRemote;
   support?: PluginSupport;
 }

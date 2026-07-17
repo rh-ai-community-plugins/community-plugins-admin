@@ -31,7 +31,10 @@ import ExclamationCircleIcon from '@patternfly/react-icons/dist/js/icons/exclama
 import QuestionCircleIcon from '@patternfly/react-icons/dist/js/icons/question-circle-icon';
 import { useInstalledPlugins } from '~/app/hooks/useInstalledPlugins';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
+import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
+import ConfirmRemoveModal from '~/app/components/ConfirmRemoveModal';
+import LifecycleProgressModal from '~/app/components/LifecycleProgressModal';
 import { InstalledPlugin, PluginHealthStatus } from '~/app/types/installed';
 import { maintenanceLabelColor, maintenanceDisplayText } from '~/app/utils/maintenance';
 
@@ -55,11 +58,14 @@ const InstalledPage: React.FC = () => {
 
   const { user } = useCurrentUser();
   const isAdmin = user?.isAdmin ?? false;
+  const lifecycle = usePluginLifecycle();
 
   const installedNames = useMemo(() => new Set(plugins.map((p) => p.name)), [plugins]);
 
   const [searchText, setSearchText] = useState('');
   const [selectedPlugin, setSelectedPlugin] = useState<string | null>(null);
+  const [removeTarget, setRemoveTarget] = useState<string | null>(null);
+  const [showProgress, setShowProgress] = useState(false);
 
   const filteredPlugins = useMemo(() => {
     if (!searchText) return plugins;
@@ -73,6 +79,29 @@ const InstalledPage: React.FC = () => {
       );
     });
   }, [plugins, searchText]);
+
+  const handleUpgrade = async (pluginName: string) => {
+    setShowProgress(true);
+    await lifecycle.upgrade(pluginName);
+  };
+
+  const handleRemoveConfirm = async (deleteNamespace: boolean) => {
+    if (!removeTarget) return;
+    setRemoveTarget(null);
+    setShowProgress(true);
+    await lifecycle.remove(removeTarget, deleteNamespace);
+  };
+
+  const handleDisable = async (pluginName: string) => {
+    setShowProgress(true);
+    await lifecycle.disable(pluginName);
+  };
+
+  const handleProgressClose = () => {
+    setShowProgress(false);
+    lifecycle.reset();
+    refetch();
+  };
 
   const getRowActions = (plugin: InstalledPlugin): IAction[] => {
     if (!isAdmin) return [];
@@ -90,17 +119,22 @@ const InstalledPage: React.FC = () => {
     ) {
       actions.push({
         title: 'Upgrade',
-        isDisabled: true,
-        tooltipProps: { content: 'Upgrade is not yet available' },
+        onClick: () => handleUpgrade(plugin.name),
+        isDisabled: lifecycle.loading,
       });
     }
 
     actions.push(
+      {
+        title: 'Disable',
+        onClick: () => handleDisable(plugin.name),
+        isDisabled: lifecycle.loading,
+      },
       { isSeparator: true },
       {
         title: 'Remove',
-        isDisabled: true,
-        tooltipProps: { content: 'Remove is not yet available' },
+        onClick: () => setRemoveTarget(plugin.name),
+        isDisabled: lifecycle.loading,
       },
     );
 
@@ -262,7 +296,24 @@ const InstalledPage: React.FC = () => {
         isAdmin={isAdmin}
         installedNames={installedNames}
         installedLoading={loading}
+        lifecycle={lifecycle}
         onClose={() => setSelectedPlugin(null)}
+        onLifecycleComplete={refetch}
+      />
+      <ConfirmRemoveModal
+        pluginName={removeTarget}
+        isOpen={!!removeTarget}
+        isLoading={lifecycle.loading}
+        onConfirm={handleRemoveConfirm}
+        onCancel={() => setRemoveTarget(null)}
+      />
+      <LifecycleProgressModal
+        isOpen={showProgress}
+        operation={lifecycle.operation}
+        steps={lifecycle.result?.steps ?? []}
+        success={lifecycle.loading ? null : lifecycle.result?.success ?? null}
+        message={lifecycle.result?.message ?? null}
+        onClose={handleProgressClose}
       />
     </>
   );
