@@ -33,6 +33,7 @@ import { useInstalledPlugins } from '~/app/hooks/useInstalledPlugins';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { InstalledPlugin, PluginHealthStatus } from '~/app/types/installed';
+import { maintenanceLabelColor, maintenanceDisplayText } from '~/app/utils/maintenance';
 
 const statusConfig: Record<PluginHealthStatus, { label: string; color: 'green' | 'orange' | 'red' | 'grey'; icon: React.ReactElement }> = {
   running: { label: 'Running', color: 'green', icon: <CheckCircleIcon /> },
@@ -233,10 +234,10 @@ const InstalledPage: React.FC = () => {
                     <Td dataLabel="Maintenance">
                       {plugin.catalogPlugin ? (
                         <Label
-                          color={plugin.catalogPlugin.maintenance === 'red-hat' ? 'orange' : 'teal'}
+                          color={maintenanceLabelColor(plugin.catalogPlugin.maintenance)}
                           isCompact
                         >
-                          {plugin.catalogPlugin.maintenance === 'red-hat' ? 'Red Hat' : 'Community'}
+                          {maintenanceDisplayText(plugin.catalogPlugin.maintenance)}
                         </Label>
                       ) : (
                         '—'

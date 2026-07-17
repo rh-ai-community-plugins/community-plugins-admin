@@ -42,6 +42,7 @@ import { useCatalog } from '~/app/hooks/useCatalog';
 import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { CatalogPlugin } from '~/app/types/catalog';
+import { maintenanceLabelColor, maintenanceDisplayText } from '~/app/utils/maintenance';
 
 type FilterKey = 'status' | 'maintenance' | 'installState';
 
@@ -63,8 +64,6 @@ const INSTALL_STATE_OPTIONS = [
 const statusLabelColor = (status: string): 'blue' | 'green' =>
   status === 'stable' ? 'green' : 'blue';
 
-const maintenanceLabelColor = (maintenance: string): 'orange' | 'teal' =>
-  maintenance === 'red-hat' ? 'orange' : 'teal';
 
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();
@@ -327,7 +326,7 @@ const CatalogPage: React.FC = () => {
                 {plugin.status === 'stable' ? 'Stable' : 'Experimental'}
               </Label>
               <Label color={maintenanceLabelColor(plugin.maintenance)} isCompact>
-                {plugin.maintenance === 'red-hat' ? 'Red Hat' : 'Community'}
+                {maintenanceDisplayText(plugin.maintenance)}
               </Label>
               {plugin.deploymentModel && (
                 <Label color="grey" isCompact>
