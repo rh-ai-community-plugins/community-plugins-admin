@@ -75,6 +75,8 @@ const errorResult: PluginDetailResult = {
   error: 'Plugin "bad-plugin" not found',
 };
 
+const emptyNames = new Set<string>();
+
 beforeEach(() => {
   jest.resetAllMocks();
 });
@@ -84,7 +86,7 @@ describe('PluginDetailModal', () => {
     it('does not render modal content when pluginName is null', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin));
       render(
-        <PluginDetailModal pluginName={null} isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName={null} isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.queryByText('Test Plugin')).not.toBeInTheDocument();
     });
@@ -92,7 +94,7 @@ describe('PluginDetailModal', () => {
     it('renders modal when pluginName is provided', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Test Plugin')).toBeInTheDocument();
     });
@@ -101,7 +103,7 @@ describe('PluginDetailModal', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin));
       const onClose = jest.fn();
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} onClose={onClose} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} onClose={onClose} />,
       );
       const closeButtons = screen.getAllByRole('button', { name: 'Close' });
       const footerClose = closeButtons[closeButtons.length - 1];
@@ -114,7 +116,7 @@ describe('PluginDetailModal', () => {
     it('shows spinner while loading', () => {
       mockUsePluginDetail.mockReturnValue(loadingResult);
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByLabelText('Loading plugin details')).toBeInTheDocument();
     });
@@ -124,7 +126,7 @@ describe('PluginDetailModal', () => {
     it('shows error alert when fetch fails', () => {
       mockUsePluginDetail.mockReturnValue(errorResult);
       render(
-        <PluginDetailModal pluginName="bad-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="bad-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Failed to load plugin details')).toBeInTheDocument();
       expect(screen.getByText('Plugin "bad-plugin" not found')).toBeInTheDocument();
@@ -135,7 +137,7 @@ describe('PluginDetailModal', () => {
     it('renders display name, version badge, status badge, and maintenance badge', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Test Plugin')).toBeInTheDocument();
       expect(screen.getByText('v2.1.0')).toBeInTheDocument();
@@ -146,7 +148,7 @@ describe('PluginDetailModal', () => {
     it('shows Installed badge when plugin is installed', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Installed')).toBeInTheDocument();
     });
@@ -154,7 +156,7 @@ describe('PluginDetailModal', () => {
     it('does not show Installed badge when plugin is not installed', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.queryByText('Installed')).not.toBeInTheDocument();
     });
@@ -162,7 +164,7 @@ describe('PluginDetailModal', () => {
     it('uses name as fallback when displayName is missing', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(minimalPlugin));
       render(
-        <PluginDetailModal pluginName="minimal-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="minimal-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('minimal-plugin')).toBeInTheDocument();
     });
@@ -175,7 +177,7 @@ describe('PluginDetailModal', () => {
 
     it('renders description', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Description')).toBeInTheDocument();
       expect(
@@ -185,7 +187,7 @@ describe('PluginDetailModal', () => {
 
     it('renders maintainer with GitHub link', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Maintainer')).toBeInTheDocument();
       const maintainerLink = screen.getByRole('link', { name: /Jane Doe/i });
@@ -197,7 +199,7 @@ describe('PluginDetailModal', () => {
 
     it('renders RHOAI compatibility', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('RHOAI Compatibility')).toBeInTheDocument();
       expect(screen.getByText(/Min version: 2.10/)).toBeInTheDocument();
@@ -208,7 +210,7 @@ describe('PluginDetailModal', () => {
 
     it('renders deployment model', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Deployment Model')).toBeInTheDocument();
       expect(screen.getByText('Cluster-shared')).toBeInTheDocument();
@@ -216,7 +218,7 @@ describe('PluginDetailModal', () => {
 
     it('renders container images', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Container Images')).toBeInTheDocument();
       expect(screen.getByText('quay.io/org/test-plugin:2.1.0')).toBeInTheDocument();
@@ -225,7 +227,7 @@ describe('PluginDetailModal', () => {
 
     it('renders install method with helm info and prerequisites', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Install Method')).toBeInTheDocument();
       expect(screen.getByText('Automatic')).toBeInTheDocument();
@@ -238,7 +240,7 @@ describe('PluginDetailModal', () => {
 
     it('renders RBAC requirements', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('RBAC Requirements')).toBeInTheDocument();
       expect(screen.getByText('Requires cluster-level roles')).toBeInTheDocument();
@@ -248,7 +250,7 @@ describe('PluginDetailModal', () => {
 
     it('renders support links', () => {
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('Support')).toBeInTheDocument();
       const repoLink = screen.getByRole('link', { name: /Repository/i });
@@ -267,7 +269,7 @@ describe('PluginDetailModal', () => {
     it('renders without optional sections', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(minimalPlugin));
       render(
-        <PluginDetailModal pluginName="minimal-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="minimal-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByText('minimal-plugin')).toBeInTheDocument();
       expect(screen.getByText('Experimental')).toBeInTheDocument();
@@ -287,7 +289,7 @@ describe('PluginDetailModal', () => {
     it('does not show action buttons for non-admin users but shows Close', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument();
@@ -300,7 +302,7 @@ describe('PluginDetailModal', () => {
     it('shows Install button for admin when plugin is not installed', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByRole('button', { name: 'Install' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument();
@@ -311,7 +313,7 @@ describe('PluginDetailModal', () => {
     it('shows Upgrade, Disable, Remove buttons for admin when plugin is installed', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Upgrade' })).toBeInTheDocument();
@@ -322,7 +324,7 @@ describe('PluginDetailModal', () => {
     it('action buttons are aria-disabled (stubs for Phase 6)', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       expect(screen.getByRole('button', { name: 'Upgrade' })).toHaveAttribute(
         'aria-disabled',
@@ -341,7 +343,7 @@ describe('PluginDetailModal', () => {
     it('shows Close button in footer for admin', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
       const closeButtons = screen.getAllByRole('button', { name: 'Close' });
       expect(closeButtons.length).toBeGreaterThanOrEqual(1);

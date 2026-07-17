@@ -409,6 +409,8 @@ const CatalogPage: React.FC = () => {
       <PluginDetailModal
         pluginName={selectedPlugin}
         isAdmin={isAdmin}
+        installedNames={installedNames}
+        installedLoading={installedLoading}
         onClose={() => setSelectedPlugin(null)}
       />
     </>

@@ -1,13 +1,6 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { usePluginDetail } from '../usePluginDetail';
-import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
 import { CatalogPlugin } from '~/app/types/catalog';
-
-jest.mock('~/app/hooks/useInstalledPluginNames');
-
-const mockUseInstalledPluginNames = useInstalledPluginNames as jest.MockedFunction<
-  typeof useInstalledPluginNames
->;
 
 const mockPlugin: CatalogPlugin = {
   name: 'test-plugin',
@@ -21,22 +14,15 @@ const mockPlugin: CatalogPlugin = {
   version: '1.0.0',
 };
 
-const defaultInstalledReturn = {
-  installedNames: new Set<string>(),
-  entries: [],
-  loading: false,
-  error: null,
-  refetch: jest.fn(),
-};
+const emptyNames = new Set<string>();
 
 beforeEach(() => {
   jest.resetAllMocks();
-  mockUseInstalledPluginNames.mockReturnValue(defaultInstalledReturn);
   global.fetch = jest.fn();
 });
 
 it('returns null plugin and no loading when pluginName is null', () => {
-  const { result } = renderHook(() => usePluginDetail(null));
+  const { result } = renderHook(() => usePluginDetail(null, emptyNames, false));
   expect(result.current.plugin).toBeNull();
   expect(result.current.loading).toBe(false);
   expect(result.current.error).toBeNull();
@@ -50,7 +36,7 @@ it('fetches plugin detail on mount', async () => {
     json: () => Promise.resolve(mockPlugin),
   });
 
-  const { result } = renderHook(() => usePluginDetail('test-plugin'));
+  const { result } = renderHook(() => usePluginDetail('test-plugin', emptyNames, false));
 
   expect(result.current.loading).toBe(true);
 
@@ -73,7 +59,7 @@ it('sets error on 404 response', async () => {
     json: () => Promise.resolve({}),
   });
 
-  const { result } = renderHook(() => usePluginDetail('missing-plugin'));
+  const { result } = renderHook(() => usePluginDetail('missing-plugin', emptyNames, false));
 
   await waitFor(() => {
     expect(result.current.loading).toBe(false);
@@ -90,7 +76,7 @@ it('sets error on server error', async () => {
     json: () => Promise.resolve({}),
   });
 
-  const { result } = renderHook(() => usePluginDetail('bad-plugin'));
+  const { result } = renderHook(() => usePluginDetail('bad-plugin', emptyNames, false));
 
   await waitFor(() => {
     expect(result.current.loading).toBe(false);
@@ -101,10 +87,7 @@ it('sets error on server error', async () => {
 });
 
 it('reports installed=true when plugin is in installed names', async () => {
-  mockUseInstalledPluginNames.mockReturnValue({
-    ...defaultInstalledReturn,
-    installedNames: new Set(['test-plugin']),
-  });
+  const installedSet = new Set(['test-plugin']);
 
   (global.fetch as jest.Mock).mockResolvedValueOnce({
     ok: true,
@@ -112,7 +95,7 @@ it('reports installed=true when plugin is in installed names', async () => {
     json: () => Promise.resolve(mockPlugin),
   });
 
-  const { result } = renderHook(() => usePluginDetail('test-plugin'));
+  const { result } = renderHook(() => usePluginDetail('test-plugin', installedSet, false));
 
   await waitFor(() => {
     expect(result.current.loading).toBe(false);
@@ -128,7 +111,7 @@ it('reports installed=false when plugin is not installed', async () => {
     json: () => Promise.resolve(mockPlugin),
   });
 
-  const { result } = renderHook(() => usePluginDetail('test-plugin'));
+  const { result } = renderHook(() => usePluginDetail('test-plugin', emptyNames, false));
 
   await waitFor(() => {
     expect(result.current.loading).toBe(false);
@@ -138,18 +121,13 @@ it('reports installed=false when plugin is not installed', async () => {
 });
 
 it('includes installedLoading in loading state', () => {
-  mockUseInstalledPluginNames.mockReturnValue({
-    ...defaultInstalledReturn,
-    loading: true,
-  });
-
   (global.fetch as jest.Mock).mockResolvedValueOnce({
     ok: true,
     status: 200,
     json: () => Promise.resolve(mockPlugin),
   });
 
-  const { result } = renderHook(() => usePluginDetail('test-plugin'));
+  const { result } = renderHook(() => usePluginDetail('test-plugin', emptyNames, true));
   expect(result.current.loading).toBe(true);
 });
 
@@ -160,7 +138,7 @@ it('encodes plugin name in URL', async () => {
     json: () => Promise.resolve(mockPlugin),
   });
 
-  renderHook(() => usePluginDetail('plugin with spaces'));
+  renderHook(() => usePluginDetail('plugin with spaces', emptyNames, false));
 
   expect(global.fetch).toHaveBeenCalledWith(
     '/community-plugins-admin/api/catalog/plugin%20with%20spaces',
@@ -176,7 +154,7 @@ it('resets state when pluginName changes to null', async () => {
   });
 
   const { result, rerender } = renderHook(
-    ({ name }) => usePluginDetail(name),
+    ({ name }) => usePluginDetail(name, emptyNames, false),
     { initialProps: { name: 'test-plugin' as string | null } },
   );
 
