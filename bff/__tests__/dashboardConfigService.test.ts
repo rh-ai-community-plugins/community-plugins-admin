@@ -115,7 +115,11 @@ describe('addPluginToConfig', () => {
 });
 
 describe('removePluginFromConfig', () => {
-  it('removes entry and patches deployment', async () => {
+  beforeEach(() => {
+    mockK8sRequest.mockReset();
+  });
+
+  it('removes entry with camelCase scope and patches deployment', async () => {
     mockK8sRequest.mockResolvedValue({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries)),
@@ -125,6 +129,53 @@ describe('removePluginFromConfig', () => {
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
     expect(patchCall).toBeDefined();
+  });
+
+  it('removes entry with PascalCase scope by plugin name', async () => {
+    // Simulates the bug scenario: plugin.yaml declares scope "CommunityPluginsAdmin"
+    // (PascalCase), which is stored verbatim by addPluginToConfig. removePluginFromConfig
+    // must look up the actual stored scope rather than re-deriving it via
+    // kebabToCamelScope, which would produce "communityPluginsAdmin" (lowerCamelCase)
+    // and fail to match.
+    const pascalEntries = [
+      {
+        scope: 'CommunityPluginsAdmin',
+        module: './extensions',
+        remoteEntry: 'http://svc:8080/remoteEntry.js',
+      },
+    ];
+    mockK8sRequest.mockResolvedValue({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(pascalEntries)),
+    });
+
+    await removePluginFromConfig('test-token', 'community-plugins-admin');
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    expect(patchCall).toBeDefined();
+    // Verify the patched value is an empty array (entry was removed)
+    const patchBody = patchCall![0].body as Array<{ value: string }>;
+    expect(JSON.parse(patchBody[0].value)).toEqual([]);
+  });
+
+  it('removes only the matching entry when multiple plugins are present', async () => {
+    const multiEntries = [
+      { scope: 'CommunityPluginsAdmin', module: './extensions', remoteEntry: 'http://cpa:8080/remoteEntry.js' },
+      { scope: 'anotherPlugin', module: './extensions', remoteEntry: 'http://another:8080/remoteEntry.js' },
+    ];
+    mockK8sRequest.mockResolvedValue({
+      status: 200,
+      body: deploymentWithConfig(JSON.stringify(multiEntries)),
+    });
+
+    await removePluginFromConfig('test-token', 'community-plugins-admin');
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    expect(patchCall).toBeDefined();
+    const patchBody = patchCall![0].body as Array<{ value: string }>;
+    const remaining = JSON.parse(patchBody[0].value) as typeof multiEntries;
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].scope).toBe('anotherPlugin');
   });
 
   it('throws when plugin not found', async () => {

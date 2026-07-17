@@ -71,14 +71,20 @@ export async function removePluginFromConfig(
   token: string,
   pluginName: string,
 ): Promise<void> {
-  const scope = kebabToCamelScope(pluginName);
   const current = await getModuleFederationConfig(token);
-  const updated = current.filter((e) => e.scope !== scope);
 
-  if (updated.length === current.length) {
+  // Find the entry by converting each stored scope back to kebab-case rather
+  // than re-deriving the scope via kebabToCamelScope. This handles scopes in
+  // any case (camelCase, PascalCase, etc.) because addPluginToConfig stores
+  // whatever scope the plugin.yaml declares (e.g. "CommunityPluginsAdmin"),
+  // while kebabToCamelScope would only ever produce "communityPluginsAdmin".
+  const entry = current.find((e) => scopeToKebab(e.scope) === pluginName);
+
+  if (!entry) {
     throw new Error(`Plugin "${pluginName}" not found in ${MF_ENV_VAR}`);
   }
 
+  const updated = current.filter((e) => e.scope !== entry.scope);
   await patchModuleFederationConfig(token, updated);
 }
 
