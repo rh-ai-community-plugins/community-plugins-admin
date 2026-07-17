@@ -417,6 +417,42 @@ describe('PluginDetailModal', () => {
       expect(installButton).toHaveAttribute('aria-disabled', 'true');
     });
 
+    it('should call lifecycle.install when Install button is clicked', async () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Install' }));
+      expect(mockLifecycle.install).toHaveBeenCalledWith('test-plugin');
+    });
+
+    it('should call lifecycle.upgrade when Upgrade button is clicked', async () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
+      expect(mockLifecycle.upgrade).toHaveBeenCalledWith('test-plugin');
+    });
+
+    it('should call lifecycle.disable when Disable button is clicked', async () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Disable' }));
+      expect(mockLifecycle.disable).toHaveBeenCalledWith('test-plugin');
+    });
+
+    it('should open ConfirmRemoveModal when Remove button is clicked', async () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      expect(screen.getByText('Remove plugin')).toBeInTheDocument();
+    });
+
     it('does not show disabled Install button for non-admin when plugin has no install configuration', () => {
       const pluginWithoutInstall: CatalogPlugin = {
         ...fullPlugin,
@@ -515,6 +551,23 @@ describe('PluginDetailModal', () => {
         />,
       );
       expect(screen.queryByText('Disabled')).not.toBeInTheDocument();
+    });
+
+    it('calls lifecycle.remove (opens confirm modal) when Remove button is clicked in disabled state', async () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
+      render(
+        <PluginDetailModal
+          pluginName="test-plugin"
+          isAdmin={true}
+          installedNames={emptyNames}
+          installedLoading={false}
+          helmInstalledNames={helmInstalledNames}
+          lifecycle={mockLifecycle}
+          onClose={jest.fn()}
+        />,
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+      expect(screen.getByText('Remove plugin')).toBeInTheDocument();
     });
 
     it('does not treat installed plugins as disabled even if in helmInstalledNames', () => {

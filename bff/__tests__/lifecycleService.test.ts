@@ -1,4 +1,4 @@
-import { sanitizeErrorMessage, upgradePlugin, removePlugin } from '../src/services/lifecycleService';
+import { sanitizeErrorMessage, upgradePlugin, removePlugin, installPlugin, enablePlugin, disablePlugin } from '../src/services/lifecycleService';
 
 jest.mock('../src/services/helmService');
 jest.mock('../src/services/dashboardConfigService');
@@ -7,20 +7,24 @@ jest.mock('../src/services/pluginMetadataClient');
 jest.mock('../src/services/charterClient');
 
 import {
+  helmInstall,
   helmUpgrade,
   helmUninstall,
   discoverReleaseNamespace,
 } from '../src/services/helmService';
 import {
+  addPluginToConfig,
   removePluginFromConfig,
 } from '../src/services/dashboardConfigService';
 import { k8sRequest } from '../src/services/k8sApiClient';
 import { getPluginMetadata } from '../src/services/pluginMetadataClient';
 import { getRegistryPlugins } from '../src/services/charterClient';
 
+const mockHelmInstall = helmInstall as jest.MockedFunction<typeof helmInstall>;
 const mockHelmUpgrade = helmUpgrade as jest.MockedFunction<typeof helmUpgrade>;
 const mockHelmUninstall = helmUninstall as jest.MockedFunction<typeof helmUninstall>;
 const mockDiscoverReleaseNamespace = discoverReleaseNamespace as jest.MockedFunction<typeof discoverReleaseNamespace>;
+const mockAddPluginToConfig = addPluginToConfig as jest.MockedFunction<typeof addPluginToConfig>;
 const mockRemovePluginFromConfig = removePluginFromConfig as jest.MockedFunction<typeof removePluginFromConfig>;
 const mockK8sRequest = k8sRequest as jest.MockedFunction<typeof k8sRequest>;
 const mockGetPluginMetadata = getPluginMetadata as jest.MockedFunction<typeof getPluginMetadata>;
@@ -44,8 +48,10 @@ beforeEach(() => {
   jest.resetAllMocks();
   mockGetRegistryPlugins.mockResolvedValue([FAKE_REGISTRY_ENTRY]);
   mockGetPluginMetadata.mockResolvedValue(FAKE_METADATA as never);
+  mockHelmInstall.mockResolvedValue('');
   mockHelmUpgrade.mockResolvedValue('{}');
   mockHelmUninstall.mockResolvedValue('');
+  mockAddPluginToConfig.mockResolvedValue(undefined);
   mockRemovePluginFromConfig.mockResolvedValue(undefined);
   mockK8sRequest.mockResolvedValue({ status: 200, body: {} });
 });
@@ -237,5 +243,132 @@ describe('removePlugin namespace handling', () => {
     expect(result.message).toMatch(/Failed to remove plugin/);
     const failedStep = result.steps.find((s) => s.status === 'failed');
     expect(failedStep?.id).toBe('helm-uninstall');
+  });
+});
+
+describe('installPlugin', () => {
+  it('returns success when all steps complete', async () => {
+    const result = await installPlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(true);
+    expect(result.message).toMatch(/installed successfully/);
+    expect(mockHelmInstall).toHaveBeenCalledWith(
+      'my-plugin',
+      'oci://quay.io/charts/my-plugin',
+      'my-plugin',
+      'token',
+      undefined,
+    );
+    expect(mockAddPluginToConfig).toHaveBeenCalledWith(
+      'token',
+      expect.objectContaining({ scope: 'myPlugin', module: './extensions' }),
+    );
+    expect(result.steps.every((s) => s.status === 'completed')).toBe(true);
+  });
+
+  it('uses provided namespace instead of plugin name', async () => {
+    const result = await installPlugin('my-plugin', 'token', 'custom-ns');
+
+    expect(result.success).toBe(true);
+    expect(mockHelmInstall).toHaveBeenCalledWith(
+      'my-plugin',
+      'oci://quay.io/charts/my-plugin',
+      'custom-ns',
+      'token',
+      undefined,
+    );
+  });
+
+  it('returns failure when plugin is not found in registry', async () => {
+    mockGetRegistryPlugins.mockResolvedValue([]);
+
+    const result = await installPlugin('unknown-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/Failed to install plugin/);
+    const failedStep = result.steps.find((s) => s.status === 'failed');
+    expect(failedStep?.id).toBe('resolve');
+    expect(mockHelmInstall).not.toHaveBeenCalled();
+  });
+
+  it('returns failure when helm install fails', async () => {
+    mockHelmInstall.mockRejectedValue(new Error('helm install error'));
+
+    const result = await installPlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/Failed to install plugin/);
+    const failedStep = result.steps.find((s) => s.status === 'failed');
+    expect(failedStep?.id).toBe('helm-install');
+    expect(mockAddPluginToConfig).not.toHaveBeenCalled();
+  });
+
+  it('returns failure when config update fails', async () => {
+    mockAddPluginToConfig.mockRejectedValue(new Error('config update error'));
+
+    const result = await installPlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/Failed to install plugin/);
+    const failedStep = result.steps.find((s) => s.status === 'failed');
+    expect(failedStep?.id).toBe('update-config');
+  });
+});
+
+describe('enablePlugin', () => {
+  it('returns success and calls addPluginToConfig', async () => {
+    const result = await enablePlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(true);
+    expect(result.message).toMatch(/enabled/);
+    expect(mockAddPluginToConfig).toHaveBeenCalledWith(
+      'token',
+      expect.objectContaining({ scope: 'myPlugin', module: './extensions' }),
+    );
+    expect(result.steps.every((s) => s.status === 'completed')).toBe(true);
+  });
+
+  it('returns failure when plugin is not found in registry', async () => {
+    mockGetRegistryPlugins.mockResolvedValue([]);
+
+    const result = await enablePlugin('unknown-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/Failed to enable plugin/);
+    const failedStep = result.steps.find((s) => s.status === 'failed');
+    expect(failedStep?.id).toBe('resolve');
+    expect(mockAddPluginToConfig).not.toHaveBeenCalled();
+  });
+
+  it('returns failure when addPluginToConfig fails', async () => {
+    mockAddPluginToConfig.mockRejectedValue(new Error('dashboard config error'));
+
+    const result = await enablePlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/Failed to enable plugin/);
+    const failedStep = result.steps.find((s) => s.status === 'failed');
+    expect(failedStep?.id).toBe('enable');
+  });
+});
+
+describe('disablePlugin', () => {
+  it('returns success and calls removePluginFromConfig', async () => {
+    const result = await disablePlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(true);
+    expect(result.message).toMatch(/disabled/);
+    expect(mockRemovePluginFromConfig).toHaveBeenCalledWith('token', 'my-plugin');
+  });
+
+  it('returns failure when removePluginFromConfig fails', async () => {
+    mockRemovePluginFromConfig.mockRejectedValue(new Error('dashboard config error'));
+
+    const result = await disablePlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/Failed to disable plugin/);
+    const failedStep = result.steps.find((s) => s.status === 'failed');
+    expect(failedStep?.id).toBe('disable');
   });
 });

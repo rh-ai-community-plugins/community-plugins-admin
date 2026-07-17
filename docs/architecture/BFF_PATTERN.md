@@ -149,6 +149,7 @@ Lists all Helm-deployed plugin releases across namespaces. Returns `{ releases: 
 #### `POST /api/plugins/:name/install`
 
 Installs a plugin via Helm. Request body:
+
 - `namespace` (optional) — target namespace, defaults to plugin name
 - `values` (optional) — Helm values to override
 
@@ -175,6 +176,7 @@ Removes the plugin's entry from `MODULE_FEDERATION_CONFIG`. The plugin stays dep
 #### Charter Client (`charterClient.ts`)
 
 Fetches and parses `plugins.yaml` from the charter registry on GitHub. Features:
+
 - In-memory cache with configurable TTL (`CHARTER_CACHE_TTL_MS`, default 5 min)
 - Stale-while-revalidate: serves cached data on fetch failure
 - Force refresh support
@@ -182,6 +184,7 @@ Fetches and parses `plugins.yaml` from the charter registry on GitHub. Features:
 #### Plugin Metadata Client (`pluginMetadataClient.ts`)
 
 Fetches `plugin.yaml` from each plugin's GitHub repo. Features:
+
 - Per-plugin cache with TTL (`PLUGIN_CACHE_TTL_MS`)
 - Concurrent fetch limit (`PLUGIN_FETCH_CONCURRENCY`, default 5)
 - Graceful handling of missing/malformed metadata
@@ -189,6 +192,7 @@ Fetches `plugin.yaml` from each plugin's GitHub repo. Features:
 #### Dashboard Config Service (`dashboardConfigService.ts`)
 
 Reads and modifies `MODULE_FEDERATION_CONFIG` on the `rhods-dashboard` deployment in `redhat-ods-applications`. Features:
+
 - JSON Patch operations for adding/removing plugin entries
 - Optimistic concurrency control with 409 conflict retry
 - Scope conversion between camelCase (federation config) and kebab-case (internal)
@@ -196,6 +200,7 @@ Reads and modifies `MODULE_FEDERATION_CONFIG` on the `rhods-dashboard` deploymen
 #### Helm Service (`helmService.ts`)
 
 Executes Helm CLI operations. Features:
+
 - Temporary kubeconfig files (no tokens in CLI arguments)
 - Helm values validation
 - Namespace discovery from existing releases
@@ -204,6 +209,7 @@ Executes Helm CLI operations. Features:
 #### Lifecycle Service (`lifecycleService.ts`)
 
 Orchestrates plugin lifecycle by coordinating:
+
 1. Chart resolution from registry + plugin metadata
 2. Helm execution (install/upgrade/uninstall)
 3. Dashboard config updates (add/remove federation entries)
@@ -213,6 +219,7 @@ Error messages are sanitized to redact tokens and sensitive data.
 #### K8s API Client (`k8sApiClient.ts`)
 
 Low-level HTTP client for K8s API calls. Features:
+
 - CA certificate caching (positive and negative)
 - TLS insecure mode via `K8S_TLS_INSECURE` env var
 - Request timeout and response size limits
@@ -220,6 +227,7 @@ Low-level HTTP client for K8s API calls. Features:
 ### K8s Client (`k8sClient.ts`)
 
 Resolves the K8s API base URL:
+
 - **In-cluster**: Uses `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT` env vars
 - **Local dev**: Uses the `K8S_API_BASE` env var
 

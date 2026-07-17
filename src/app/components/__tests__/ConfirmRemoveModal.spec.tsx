@@ -92,6 +92,23 @@ describe('ConfirmRemoveModal', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('should disable input, Cancel, and Remove when isLoading is true', () => {
+    render(
+      <ConfirmRemoveModal
+        pluginName="my-plugin"
+        isOpen={true}
+        isLoading={true}
+        onConfirm={jest.fn()}
+        onCancel={jest.fn()}
+      />,
+    );
+    expect(screen.getByLabelText('Confirm plugin name')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    // PF6 loading button prepends the spinner's accessible name ("Loading...") to the button text
+    const removeBtn = screen.getByRole('button', { name: /Remove/ });
+    expect(removeBtn).toBeDisabled();
+  });
+
   it('shows error helper text when typed name does not match', async () => {
     render(
       <ConfirmRemoveModal

@@ -72,6 +72,14 @@ async function request(path: string): Promise<{ status: number; body: any }> {
   });
 }
 
+describe('GET /api/health', () => {
+  it('returns { status: "ok" }', async () => {
+    const res = await request('/api/health');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ status: 'ok' });
+  });
+});
+
 describe('GET /api/catalog', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -259,5 +267,111 @@ describe('GET /api/catalog/:name', () => {
 
     expect(res.status).toBe(502);
     expect(res.body.error).toBe('Failed to fetch plugin details');
+  });
+});
+
+describe('buildCatalogPlugin field mappings', () => {
+  const FULL_REGISTRY_PLUGIN: RegistryPlugin = {
+    name: 'full-plugin',
+    repo: 'https://github.com/org/full-plugin',
+    status: 'stable',
+    maintenance: 'red-hat',
+    last_updated: '2026-07-01',
+  };
+
+  const FULL_METADATA: PluginMetadata = {
+    name: 'full-plugin',
+    displayName: 'Full Plugin',
+    description: 'A fully-featured plugin',
+    version: '2.0.0',
+    deployment_model: 'per-project',
+    image: { repository: 'quay.io/org/full-plugin', tag: '2.0.0' },
+    bff_image: { repository: 'quay.io/org/full-plugin-bff', tag: '2.0.0' },
+    install: {
+      method: 'automatic',
+      helm: { chart_path: '/charts/full-plugin', registry: 'oci://quay.io/charts/full-plugin' },
+      prerequisites: ['cert-manager'],
+      instructions: 'Run helm install',
+    },
+    rbac: {
+      required_roles: ['admin'],
+      cluster_roles: true,
+    },
+    remote: {
+      type: 'module-federation',
+      spec: {
+        name: 'fullPlugin',
+        scope: 'fullPlugin',
+        remoteEntry: 'http://full-plugin.full-plugin.svc.cluster.local:8080/plugin-entry.js',
+        paths: [{ type: 'extension', path: './extensions' }],
+      },
+    },
+    support: {
+      repo: 'https://github.com/org/full-plugin',
+      docs: 'https://docs.example.com',
+      issues: 'https://issues.example.com',
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockedGetRegistryPlugins.mockResolvedValue([FULL_REGISTRY_PLUGIN]);
+    mockedGetPluginMetadata.mockResolvedValue(FULL_METADATA);
+  });
+
+  it('maps install fields with snake_case to camelCase', async () => {
+    const res = await request('/api/catalog/full-plugin');
+    expect(res.status).toBe(200);
+    expect(res.body.install).toEqual({
+      method: 'automatic',
+      helm: { chartPath: '/charts/full-plugin', registry: 'oci://quay.io/charts/full-plugin' },
+      prerequisites: ['cert-manager'],
+      instructions: 'Run helm install',
+    });
+  });
+
+  it('maps rbac fields with snake_case to camelCase', async () => {
+    const res = await request('/api/catalog/full-plugin');
+    expect(res.status).toBe(200);
+    expect(res.body.rbac).toEqual({
+      requiredRoles: ['admin'],
+      clusterRoles: true,
+    });
+  });
+
+  it('maps remote fields preserving nested spec structure', async () => {
+    const res = await request('/api/catalog/full-plugin');
+    expect(res.status).toBe(200);
+    expect(res.body.remote).toEqual({
+      type: 'module-federation',
+      spec: {
+        name: 'fullPlugin',
+        scope: 'fullPlugin',
+        remoteEntry: 'http://full-plugin.full-plugin.svc.cluster.local:8080/plugin-entry.js',
+        paths: [{ type: 'extension', path: './extensions' }],
+      },
+    });
+  });
+
+  it('maps deploymentModel from deployment_model', async () => {
+    const res = await request('/api/catalog/full-plugin');
+    expect(res.status).toBe(200);
+    expect(res.body.deploymentModel).toBe('per-project');
+  });
+
+  it('maps bffImage from bff_image', async () => {
+    const res = await request('/api/catalog/full-plugin');
+    expect(res.status).toBe(200);
+    expect(res.body.bffImage).toEqual({ repository: 'quay.io/org/full-plugin-bff', tag: '2.0.0' });
+  });
+
+  it('passes support fields through without transformation', async () => {
+    const res = await request('/api/catalog/full-plugin');
+    expect(res.status).toBe(200);
+    expect(res.body.support).toEqual({
+      repo: 'https://github.com/org/full-plugin',
+      docs: 'https://docs.example.com',
+      issues: 'https://issues.example.com',
+    });
   });
 });

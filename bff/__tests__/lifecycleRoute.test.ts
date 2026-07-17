@@ -219,6 +219,23 @@ describe('lifecycle routes', () => {
       expect(res.status).toBe(200);
       expect(mockEnable).toHaveBeenCalledWith('my-plugin', 'token');
     });
+
+    it('returns 401 without token', async () => {
+      const res = await req('POST', '/api/plugins/my-plugin/enable');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 400 for invalid plugin name', async () => {
+      const res = await req('POST', '/api/plugins/INVALID!/enable', {}, 'token');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 500 when service returns failure', async () => {
+      mockEnable.mockResolvedValue({ success: false, message: 'enable failed', steps: [] });
+      const res = await req('POST', '/api/plugins/my-plugin/enable', {}, 'token');
+      expect(res.status).toBe(500);
+      expect(res.body.success).toBe(false);
+    });
   });
 
   describe('POST /api/plugins/:name/disable', () => {
@@ -227,6 +244,23 @@ describe('lifecycle routes', () => {
       const res = await req('POST', '/api/plugins/my-plugin/disable', {}, 'token');
       expect(res.status).toBe(200);
       expect(mockDisable).toHaveBeenCalledWith('my-plugin', 'token');
+    });
+
+    it('returns 401 without token', async () => {
+      const res = await req('POST', '/api/plugins/my-plugin/disable');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 400 for invalid plugin name', async () => {
+      const res = await req('POST', '/api/plugins/INVALID!/disable', {}, 'token');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns 500 when service returns failure', async () => {
+      mockDisable.mockResolvedValue({ success: false, message: 'disable failed', steps: [] });
+      const res = await req('POST', '/api/plugins/my-plugin/disable', {}, 'token');
+      expect(res.status).toBe(500);
+      expect(res.body.success).toBe(false);
     });
   });
 });
