@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
 
+import { ModuleFederationEntry } from '~/app/types/installed';
+
+export { type ModuleFederationEntry } from '~/app/types/installed';
+
 const DASHBOARD_NAMESPACE = 'redhat-ods-applications';
 const DASHBOARD_DEPLOYMENT = 'rhods-dashboard';
 
@@ -11,14 +15,9 @@ const DASHBOARD_DEPLOYMENT = 'rhods-dashboard';
 export const scopeToKebab = (scope: string): string =>
   scope.replace(/([A-Z])/g, '-$1').toLowerCase();
 
-interface ModuleFederationEntry {
-  scope: string;
-  module: string;
-  remoteEntry: string;
-}
-
 export function useInstalledPluginNames() {
   const [installedNames, setInstalledNames] = useState<Set<string>>(new Set());
+  const [entries, setEntries] = useState<ModuleFederationEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,26 +52,30 @@ export function useInstalledPluginNames() {
                   `MODULE_FEDERATION_CONFIG is not an array (got ${typeof parsed})`,
                 );
               }
-              const entries = parsed as ModuleFederationEntry[];
-              setInstalledNames(new Set(entries.map((e) => scopeToKebab(e.scope))));
+              const mfEntries = parsed as ModuleFederationEntry[];
+              setEntries(mfEntries);
+              setInstalledNames(new Set(mfEntries.map((e) => scopeToKebab(e.scope))));
             } catch (parseErr) {
               setError(
                 parseErr instanceof Error
                   ? parseErr.message
                   : String(parseErr),
               );
+              setEntries([]);
               setInstalledNames(new Set());
             }
             setLoading(false);
             return;
           }
         }
+        setEntries([]);
         setInstalledNames(new Set());
         setLoading(false);
       })
       .catch((e) => {
         if (e.name === 'AbortError') return;
         setError(e.message);
+        setEntries([]);
         setInstalledNames(new Set());
         setLoading(false);
       });
@@ -80,5 +83,5 @@ export function useInstalledPluginNames() {
     return () => controller.abort();
   }, []);
 
-  return { installedNames, loading, error };
+  return { installedNames, entries, loading, error };
 }

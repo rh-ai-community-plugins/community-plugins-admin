@@ -56,6 +56,7 @@ const defaultCatalogReturn = {
 
 const defaultInstalledReturn = {
   installedNames: new Set(['plugin-alpha']),
+  entries: [],
   loading: false,
   error: null,
 };
@@ -92,6 +93,7 @@ describe('CatalogPage', () => {
   it('shows loading spinner when installedNames is still loading (race condition guard)', () => {
     mockUseInstalledPluginNames.mockReturnValue({
       installedNames: new Set(),
+      entries: [],
       loading: true,
       error: null,
     });
@@ -282,6 +284,7 @@ describe('CatalogPage', () => {
   it('shows warning alert when installedError is set', () => {
     mockUseInstalledPluginNames.mockReturnValue({
       installedNames: new Set(),
+      entries: [],
       loading: false,
       error: 'Failed to fetch dashboard deployment: 403',
     });
@@ -295,6 +298,7 @@ describe('CatalogPage', () => {
   it('still renders the catalog when installedError is set — warning is non-blocking', () => {
     mockUseInstalledPluginNames.mockReturnValue({
       installedNames: new Set(),
+      entries: [],
       loading: false,
       error: 'Failed to fetch dashboard deployment: 500',
     });
