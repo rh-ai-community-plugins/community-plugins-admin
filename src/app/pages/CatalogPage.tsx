@@ -44,6 +44,7 @@ import { useCatalog } from '~/app/hooks/useCatalog';
 import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
 import { useHelmReleasedPlugins } from '~/app/hooks/useHelmReleasedPlugins';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
+import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { CatalogPlugin } from '~/app/types/catalog';
 import { maintenanceLabelColor, maintenanceDisplayText, statusLabelColor, deploymentModelLabel } from '~/app/utils/maintenance';
@@ -72,6 +73,7 @@ const CatalogPage: React.FC = () => {
   const { helmInstalledNames, helmVersionMap, loading: helmLoading, error: helmError, refetch: helmRefetch } = useHelmReleasedPlugins();
   const { user } = useCurrentUser();
   const isAdmin = user?.isAdmin ?? false;
+  const lifecycle = usePluginLifecycle();
 
   const [searchText, setSearchText] = useState('');
   const [statusFilters, setStatusFilters] = useState<string[]>([]);
@@ -444,6 +446,7 @@ const CatalogPage: React.FC = () => {
         installedNames={installedNames}
         installedLoading={installedLoading}
         helmInstalledNames={helmInstalledNames}
+        lifecycle={lifecycle}
         onClose={() => setSelectedPlugin(null)}
         onLifecycleComplete={() => { refetch(); installedRefetch(); helmRefetch(); }}
       />
