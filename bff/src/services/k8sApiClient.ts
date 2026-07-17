@@ -6,17 +6,18 @@ import { getK8sBaseUrl } from '../utils/k8sClient';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_BODY_BYTES = 10 * 1024 * 1024;
 
-let cachedCaCert: Buffer | undefined;
+// undefined = not yet checked, null = confirmed missing, Buffer = cached cert
+let cachedCaCert: Buffer | null | undefined;
 
-function getCaCert(): Buffer | undefined {
-  if (cachedCaCert !== undefined) return cachedCaCert;
+export function getCaCert(): Buffer | undefined {
+  if (cachedCaCert !== undefined) return cachedCaCert === null ? undefined : cachedCaCert;
   const caPath = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
   try {
     cachedCaCert = fs.readFileSync(caPath);
   } catch {
-    cachedCaCert = undefined;
+    cachedCaCert = null;
   }
-  return cachedCaCert;
+  return cachedCaCert === null ? undefined : cachedCaCert;
 }
 
 export interface K8sRequestOptions {
