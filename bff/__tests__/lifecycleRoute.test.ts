@@ -5,16 +5,22 @@ import {
   enablePlugin,
   disablePlugin,
 } from '../src/services/lifecycleService';
+import { helmListAllNamespaces } from '../src/services/helmService';
 import app from '../src/app';
 import http from 'http';
 
 jest.mock('../src/services/lifecycleService');
+jest.mock('../src/services/helmService', () => ({
+  ...jest.requireActual('../src/services/helmService'),
+  helmListAllNamespaces: jest.fn(),
+}));
 
 const mockInstall = installPlugin as jest.MockedFunction<typeof installPlugin>;
 const mockUpgrade = upgradePlugin as jest.MockedFunction<typeof upgradePlugin>;
 const mockRemove = removePlugin as jest.MockedFunction<typeof removePlugin>;
 const mockEnable = enablePlugin as jest.MockedFunction<typeof enablePlugin>;
 const mockDisable = disablePlugin as jest.MockedFunction<typeof disablePlugin>;
+const mockHelmListAllNamespaces = helmListAllNamespaces as jest.MockedFunction<typeof helmListAllNamespaces>;
 
 let server: http.Server;
 let baseUrl: string;
@@ -74,6 +80,34 @@ async function req(
 }
 
 describe('lifecycle routes', () => {
+  describe('GET /api/plugins', () => {
+    it('returns 401 without token', async () => {
+      const res = await req('GET', '/api/plugins');
+      expect(res.status).toBe(401);
+    });
+
+    it('returns releases list on success', async () => {
+      mockHelmListAllNamespaces.mockResolvedValue([
+        { name: 'plugin-alpha', namespace: 'plugin-alpha', status: 'deployed' },
+        { name: 'plugin-beta', namespace: 'plugin-beta', status: 'deployed' },
+      ]);
+      const res = await req('GET', '/api/plugins', undefined, 'token');
+      expect(res.status).toBe(200);
+      expect(res.body.releases).toEqual([
+        { name: 'plugin-alpha', namespace: 'plugin-alpha', status: 'deployed' },
+        { name: 'plugin-beta', namespace: 'plugin-beta', status: 'deployed' },
+      ]);
+      expect(mockHelmListAllNamespaces).toHaveBeenCalledWith('token');
+    });
+
+    it('returns 500 when helmListAllNamespaces throws', async () => {
+      mockHelmListAllNamespaces.mockRejectedValue(new Error('helm not found'));
+      const res = await req('GET', '/api/plugins', undefined, 'token');
+      expect(res.status).toBe(500);
+      expect(res.body.error).toBe('Failed to list Helm releases');
+    });
+  });
+
   describe('POST /api/plugins/:name/install', () => {
     it('returns 401 without token', async () => {
       const res = await req('POST', '/api/plugins/my-plugin/install');

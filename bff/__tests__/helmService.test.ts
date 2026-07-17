@@ -1,4 +1,4 @@
-import { helmInstall, helmUpgrade, helmUninstall, validateHelmValues, discoverReleaseNamespace } from '../src/services/helmService';
+import { helmInstall, helmUpgrade, helmUninstall, validateHelmValues, discoverReleaseNamespace, helmListAllNamespaces } from '../src/services/helmService';
 import { execFile } from 'child_process';
 import * as fs from 'fs';
 import { getK8sBaseUrl } from '../src/utils/k8sClient';
@@ -270,5 +270,47 @@ describe('discoverReleaseNamespace', () => {
     });
 
     await expect(discoverReleaseNamespace('my-plugin', 'token')).rejects.toThrow('Helm command failed');
+  });
+});
+
+describe('helmListAllNamespaces', () => {
+  it('returns parsed releases from all namespaces', async () => {
+    const releases = [
+      { name: 'plugin-alpha', namespace: 'plugin-alpha', status: 'deployed' },
+      { name: 'plugin-beta', namespace: 'plugin-beta', status: 'deployed' },
+    ];
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, JSON.stringify(releases), '');
+      return undefined as never;
+    });
+
+    const result = await helmListAllNamespaces('user-token');
+
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args).toContain('list');
+    expect(args).toContain('--all-namespaces');
+    expect(args).toContain('--output');
+    expect(args).toContain('json');
+    expect(result).toEqual(releases);
+  });
+
+  it('returns empty array when helm command fails', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(new Error('helm not found'), '', 'command not found');
+      return undefined as never;
+    });
+
+    const result = await helmListAllNamespaces('user-token');
+    expect(result).toEqual([]);
+  });
+
+  it('returns empty array when output is invalid JSON', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, 'not valid json', '');
+      return undefined as never;
+    });
+
+    const result = await helmListAllNamespaces('user-token');
+    expect(result).toEqual([]);
   });
 });

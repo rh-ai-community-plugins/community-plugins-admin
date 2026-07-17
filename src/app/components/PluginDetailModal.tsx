@@ -23,6 +23,7 @@ import {
   Tooltip,
 } from '@patternfly/react-core';
 import ExternalLinkAltIcon from '@patternfly/react-icons/dist/js/icons/external-link-alt-icon';
+import BanIcon from '@patternfly/react-icons/dist/js/icons/ban-icon';
 import { usePluginDetail } from '~/app/hooks/usePluginDetail';
 import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import { CatalogPlugin } from '~/app/types/catalog';
@@ -40,6 +41,8 @@ interface PluginDetailModalProps {
   isAdmin: boolean;
   installedNames: Set<string>;
   installedLoading: boolean;
+  /** Names of plugins with an existing Helm release (may include disabled plugins). */
+  helmInstalledNames?: Set<string>;
   onClose: () => void;
   onLifecycleComplete?: () => void;
 }
@@ -69,14 +72,16 @@ const installMethodLabel = (method: string): string => {
 const PluginDetailContent: React.FC<{
   plugin: CatalogPlugin;
   installed: boolean;
+  disabled: boolean;
   isAdmin: boolean;
   onClose: () => void;
   onInstall: () => void;
   onUpgrade: () => void;
   onRemove: () => void;
   onDisable: () => void;
+  onEnable: () => void;
   lifecycleLoading: boolean;
-}> = ({ plugin, installed, isAdmin, onClose, onInstall, onUpgrade, onRemove, onDisable, lifecycleLoading }) => {
+}> = ({ plugin, installed, disabled, isAdmin, onClose, onInstall, onUpgrade, onRemove, onDisable, onEnable, lifecycleLoading }) => {
   const displayName = plugin.displayName ?? plugin.name;
 
   return (
@@ -104,6 +109,13 @@ const PluginDetailContent: React.FC<{
               <FlexItem>
                 <Label color="green" isCompact>
                   Installed
+                </Label>
+              </FlexItem>
+            )}
+            {disabled && (
+              <FlexItem>
+                <Label color="orange" icon={<BanIcon />} isCompact>
+                  Disabled
                 </Label>
               </FlexItem>
             )}
@@ -316,7 +328,30 @@ const PluginDetailContent: React.FC<{
       </ModalBody>
       <ModalFooter>
         <Flex gap={{ default: 'gapSm' }}>
-          {isAdmin && !installed && plugin.install?.method === 'automatic' && (
+          {isAdmin && disabled && (
+            <>
+              <FlexItem>
+                <Button
+                  variant="primary"
+                  onClick={onEnable}
+                  isDisabled={lifecycleLoading}
+                  isLoading={lifecycleLoading}
+                >
+                  Enable
+                </Button>
+              </FlexItem>
+              <FlexItem>
+                <Button
+                  variant="danger"
+                  onClick={onRemove}
+                  isDisabled={lifecycleLoading}
+                >
+                  Remove
+                </Button>
+              </FlexItem>
+            </>
+          )}
+          {isAdmin && !installed && !disabled && plugin.install?.method === 'automatic' && (
             <FlexItem>
               <Button
                 variant="primary"
@@ -328,7 +363,7 @@ const PluginDetailContent: React.FC<{
               </Button>
             </FlexItem>
           )}
-          {isAdmin && !installed && plugin.install?.method === 'assisted' && (
+          {isAdmin && !installed && !disabled && plugin.install?.method === 'assisted' && (
             <FlexItem>
               <Button
                 variant="primary"
@@ -371,7 +406,7 @@ const PluginDetailContent: React.FC<{
               </FlexItem>
             </>
           )}
-          {isAdmin && !installed && plugin.install?.method === 'manual' && plugin.install.instructions && isSafeUrl(plugin.install.instructions) && (
+          {isAdmin && !installed && !disabled && plugin.install?.method === 'manual' && plugin.install.instructions && isSafeUrl(plugin.install.instructions) && (
             <FlexItem>
               <Button
                 variant="primary"
@@ -384,7 +419,7 @@ const PluginDetailContent: React.FC<{
               </Button>
             </FlexItem>
           )}
-          {isAdmin && !installed && !plugin.install && (
+          {isAdmin && !installed && !disabled && !plugin.install && (
             <FlexItem>
               <Tooltip content="Install configuration is not available for this plugin.">
                 <Button variant="primary" isAriaDisabled>
@@ -409,11 +444,14 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
   isAdmin,
   installedNames,
   installedLoading,
+  helmInstalledNames,
   onClose,
   onLifecycleComplete,
 }) => {
   const { plugin, installed, loading, error } = usePluginDetail(pluginName, installedNames, installedLoading);
   const lifecycle = usePluginLifecycle();
+
+  const disabled = !installed && !!pluginName && !!(helmInstalledNames?.has(pluginName));
 
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
@@ -449,6 +487,12 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
     await lifecycle.disable(pluginName);
   };
 
+  const handleEnable = async () => {
+    if (!pluginName) return;
+    setShowProgress(true);
+    await lifecycle.enable(pluginName);
+  };
+
   return (
     <>
       <Modal isOpen={!!pluginName} onClose={onClose} variant="large" aria-label="Plugin details">
@@ -476,12 +520,14 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
           <PluginDetailContent
             plugin={plugin}
             installed={installed}
+            disabled={disabled}
             isAdmin={isAdmin}
             onClose={onClose}
             onInstall={handleInstall}
             onUpgrade={handleUpgrade}
             onRemove={() => setShowRemoveConfirm(true)}
             onDisable={handleDisable}
+            onEnable={handleEnable}
             lifecycleLoading={lifecycle.loading}
           />
         )}
