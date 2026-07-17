@@ -9,18 +9,19 @@ import {
   Button,
 } from '@patternfly/react-core';
 import ExclamationTriangleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
-import CommunityBanner from './components/CommunityBanner';
-import CatalogPage from './pages/CatalogPage';
-import InstalledPage from './pages/InstalledPage';
+import CommunityBanner from '~/app/components/CommunityBanner';
+import CatalogPage from '~/app/pages/CatalogPage';
+import InstalledPage from '~/app/pages/InstalledPage';
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  retryKey: number;
 }
 
 class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hasError: false };
+  state: ErrorBoundaryState = { hasError: false, retryKey: 0 };
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
+  static getDerivedStateFromError(): Pick<ErrorBoundaryState, 'hasError'> {
     return { hasError: true };
   }
 
@@ -44,7 +45,9 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
               <EmptyStateActions>
                 <Button
                   variant="primary"
-                  onClick={() => this.setState({ hasError: false })}
+                  onClick={() =>
+                    this.setState((prev) => ({ hasError: false, retryKey: prev.retryKey + 1 }))
+                  }
                 >
                   Try again
                 </Button>
@@ -54,7 +57,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
         </PageSection>
       );
     }
-    return this.props.children;
+    return <React.Fragment key={this.state.retryKey}>{this.props.children}</React.Fragment>;
   }
 }
 
@@ -62,7 +65,7 @@ const App: React.FC = () => (
   <div className="community-plugin-layout">
     {/* [SHARED] Do not remove — all community plugins must display the CommunityBanner */}
     <CommunityBanner />
-    <main className="community-plugin-content">
+    <div className="community-plugin-content">
       <ErrorBoundary>
         <Routes>
           <Route path="/" element={<Navigate to="catalog" replace />} />
@@ -71,7 +74,7 @@ const App: React.FC = () => (
           <Route path="*" element={<Navigate to="catalog" replace />} />
         </Routes>
       </ErrorBoundary>
-    </main>
+    </div>
   </div>
 );
 
