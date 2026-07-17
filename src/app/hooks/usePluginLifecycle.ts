@@ -30,6 +30,11 @@ async function lifecycleRequest(
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
 
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(`Unexpected response (HTTP ${res.status})`);
+  }
+
   const data: LifecycleResponse = await res.json();
   return data;
 }

@@ -370,7 +370,7 @@ const PluginDetailContent: React.FC<{
               </FlexItem>
             </>
           )}
-          {isAdmin && !installed && plugin.install?.method === 'manual' && plugin.install.instructions && (
+          {isAdmin && !installed && plugin.install?.method === 'manual' && plugin.install.instructions && isSafeUrl(plugin.install.instructions) && (
             <FlexItem>
               <Button
                 variant="primary"
@@ -479,9 +479,9 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
           <>
             <ModalHeader title={pluginName ?? ''} />
             <ModalBody>
-              <Bullseye>
-                <Spinner aria-label="Loading plugin details" />
-              </Bullseye>
+              <Alert variant="warning" title="Plugin not found" isInline>
+                Could not find details for plugin &quot;{pluginName}&quot;.
+              </Alert>
             </ModalBody>
           </>
         )}

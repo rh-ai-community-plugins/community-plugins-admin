@@ -2,11 +2,36 @@ import { execFile } from 'child_process';
 import { getK8sBaseUrl } from '../utils/k8sClient';
 
 const HELM_TIMEOUT_MS = 120_000;
-const HELM_BIN = process.env.HELM_BIN || 'helm';
+const HELM_BIN = '/usr/local/bin/helm';
+
+const HELM_SET_KEY_PATTERN = /^[a-zA-Z0-9._-]+$/;
+const HELM_SET_VALUE_PATTERN = /^[a-zA-Z0-9._:/@=+\- ]*$/;
 
 interface HelmResult {
   stdout: string;
   stderr: string;
+}
+
+function sanitizeHelmError(message: string): string {
+  return message.replace(/--kube-token\s+\S+/g, '--kube-token [REDACTED]');
+}
+
+export function validateHelmValues(values: unknown): asserts values is Record<string, string | number | boolean> {
+  if (typeof values !== 'object' || values === null || Array.isArray(values)) {
+    throw new Error('values must be a plain object');
+  }
+  for (const [key, val] of Object.entries(values)) {
+    if (!HELM_SET_KEY_PATTERN.test(key)) {
+      throw new Error(`Invalid Helm value key: "${key}"`);
+    }
+    if (typeof val !== 'string' && typeof val !== 'number' && typeof val !== 'boolean') {
+      throw new Error(`Invalid Helm value type for key "${key}": must be string, number, or boolean`);
+    }
+    const strVal = String(val);
+    if (!HELM_SET_VALUE_PATTERN.test(strVal)) {
+      throw new Error(`Invalid Helm value for key "${key}"`);
+    }
+  }
 }
 
 function runHelm(args: string[], token: string): Promise<HelmResult> {
@@ -30,7 +55,7 @@ function runHelm(args: string[], token: string): Promise<HelmResult> {
       },
       (error, stdout, stderr) => {
         if (error) {
-          reject(new Error(`Helm command failed: ${stderr || error.message}`));
+          reject(new Error(sanitizeHelmError(`Helm command failed: ${stderr || error.message}`)));
           return;
         }
         resolve({ stdout: stdout.toString(), stderr: stderr.toString() });
@@ -60,6 +85,7 @@ export async function helmInstall(
   ];
 
   if (values) {
+    validateHelmValues(values);
     for (const [key, val] of Object.entries(values)) {
       args.push('--set', `${key}=${String(val)}`);
     }
@@ -85,6 +111,7 @@ export async function helmUpgrade(
   ];
 
   if (values) {
+    validateHelmValues(values);
     for (const [key, val] of Object.entries(values)) {
       args.push('--set', `${key}=${String(val)}`);
     }

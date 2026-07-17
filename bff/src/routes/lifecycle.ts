@@ -6,10 +6,19 @@ import {
   enablePlugin,
   disablePlugin,
 } from '../services/lifecycleService';
+import { validateHelmValues } from '../services/helmService';
 
 const router = Router();
 
 const PLUGIN_NAME_PATTERN = /^[a-z][a-z0-9-]{0,62}[a-z0-9]$/;
+const K8S_NAMESPACE_PATTERN = /^[a-z][a-z0-9-]{0,62}[a-z0-9]$/;
+
+const PROTECTED_NAMESPACES = new Set([
+  'default', 'kube-system', 'kube-public', 'kube-node-lease',
+  'openshift', 'openshift-operators', 'openshift-config',
+  'openshift-monitoring', 'openshift-infra', 'openshift-apiserver',
+  'redhat-ods-applications', 'redhat-ods-monitoring', 'redhat-ods-operator',
+]);
 
 function extractToken(req: Request): string | null {
   const auth = req.headers.authorization;
@@ -39,19 +48,34 @@ router.post('/:name/install', async (req: Request, res: Response) => {
 
   const { namespace, values } = req.body ?? {};
 
-  if (namespace !== undefined && typeof namespace !== 'string') {
-    res.status(400).json({ error: 'namespace must be a string' });
-    return;
+  if (namespace !== undefined) {
+    if (typeof namespace !== 'string' || !K8S_NAMESPACE_PATTERN.test(namespace)) {
+      res.status(400).json({ error: 'Invalid namespace: must be lowercase alphanumeric with hyphens, 2-64 characters' });
+      return;
+    }
+    if (PROTECTED_NAMESPACES.has(namespace)) {
+      res.status(400).json({ error: `Cannot install into protected namespace "${namespace}"` });
+      return;
+    }
+  }
+
+  if (values !== undefined) {
+    try {
+      validateHelmValues(values);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid values' });
+      return;
+    }
   }
 
   try {
     const result = await installPlugin(req.params.name, token, namespace, values);
     res.status(result.success ? 200 : 500).json(result);
   } catch (err) {
-    console.error(`Install failed for ${req.params.name}:`, err);
+    console.error(`Install failed for ${req.params.name}`);
     res.status(500).json({
       success: false,
-      message: err instanceof Error ? err.message : 'Internal server error',
+      message: 'Plugin installation failed',
       steps: [],
     });
   }
@@ -72,14 +96,23 @@ router.post('/:name/upgrade', async (req: Request, res: Response) => {
 
   const { values } = req.body ?? {};
 
+  if (values !== undefined) {
+    try {
+      validateHelmValues(values);
+    } catch (err) {
+      res.status(400).json({ error: err instanceof Error ? err.message : 'Invalid values' });
+      return;
+    }
+  }
+
   try {
     const result = await upgradePlugin(req.params.name, token, values);
     res.status(result.success ? 200 : 500).json(result);
   } catch (err) {
-    console.error(`Upgrade failed for ${req.params.name}:`, err);
+    console.error(`Upgrade failed for ${req.params.name}`);
     res.status(500).json({
       success: false,
-      message: err instanceof Error ? err.message : 'Internal server error',
+      message: 'Plugin upgrade failed',
       steps: [],
     });
   }
@@ -104,10 +137,10 @@ router.delete('/:name', async (req: Request, res: Response) => {
     const result = await removePlugin(req.params.name, token, deleteNamespace);
     res.status(result.success ? 200 : 500).json(result);
   } catch (err) {
-    console.error(`Remove failed for ${req.params.name}:`, err);
+    console.error(`Remove failed for ${req.params.name}`);
     res.status(500).json({
       success: false,
-      message: err instanceof Error ? err.message : 'Internal server error',
+      message: 'Plugin removal failed',
       steps: [],
     });
   }
@@ -130,10 +163,10 @@ router.post('/:name/enable', async (req: Request, res: Response) => {
     const result = await enablePlugin(req.params.name, token);
     res.status(result.success ? 200 : 500).json(result);
   } catch (err) {
-    console.error(`Enable failed for ${req.params.name}:`, err);
+    console.error(`Enable failed for ${req.params.name}`);
     res.status(500).json({
       success: false,
-      message: err instanceof Error ? err.message : 'Internal server error',
+      message: 'Plugin enable failed',
       steps: [],
     });
   }
@@ -156,10 +189,10 @@ router.post('/:name/disable', async (req: Request, res: Response) => {
     const result = await disablePlugin(req.params.name, token);
     res.status(result.success ? 200 : 500).json(result);
   } catch (err) {
-    console.error(`Disable failed for ${req.params.name}:`, err);
+    console.error(`Disable failed for ${req.params.name}`);
     res.status(500).json({
       success: false,
-      message: err instanceof Error ? err.message : 'Internal server error',
+      message: 'Plugin disable failed',
       steps: [],
     });
   }

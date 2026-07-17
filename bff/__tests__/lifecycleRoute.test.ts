@@ -85,6 +85,24 @@ describe('lifecycle routes', () => {
       expect(res.status).toBe(400);
     });
 
+    it('returns 400 for invalid namespace', async () => {
+      const res = await req('POST', '/api/plugins/my-plugin/install', { namespace: 'INVALID!' }, 'token');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/Invalid namespace/);
+    });
+
+    it('returns 400 for protected namespace', async () => {
+      const res = await req('POST', '/api/plugins/my-plugin/install', { namespace: 'kube-system' }, 'token');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/protected namespace/);
+    });
+
+    it('returns 400 for invalid values', async () => {
+      const res = await req('POST', '/api/plugins/my-plugin/install', { values: 'not-an-object' }, 'token');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toMatch(/must be a plain object/);
+    });
+
     it('returns 200 on success', async () => {
       mockInstall.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('POST', '/api/plugins/my-plugin/install', {}, 'token');

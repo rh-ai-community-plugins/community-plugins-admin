@@ -7,11 +7,18 @@ beforeEach(() => {
 
 const successResponse = { success: true, message: 'ok', steps: [] };
 
+const jsonHeaders = { get: (name: string) => name === 'content-type' ? 'application/json' : null };
+
+function mockFetchResponse(data: unknown) {
+  return {
+    headers: jsonHeaders,
+    json: () => Promise.resolve(data),
+  };
+}
+
 describe('usePluginLifecycle', () => {
   it('install sends POST to correct URL with body', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(successResponse),
-    });
+    global.fetch = jest.fn().mockResolvedValue(mockFetchResponse(successResponse));
 
     const { result } = renderHook(() => usePluginLifecycle());
 
@@ -33,7 +40,7 @@ describe('usePluginLifecycle', () => {
     const pending = new Promise((resolve) => { resolvePromise = resolve; });
 
     global.fetch = jest.fn().mockReturnValue(
-      pending.then(() => ({ json: () => Promise.resolve(successResponse) })),
+      pending.then(() => mockFetchResponse(successResponse)),
     );
 
     const { result } = renderHook(() => usePluginLifecycle());
@@ -56,9 +63,7 @@ describe('usePluginLifecycle', () => {
   });
 
   it('upgrade sends POST to correct URL', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(successResponse),
-    });
+    global.fetch = jest.fn().mockResolvedValue(mockFetchResponse(successResponse));
 
     const { result } = renderHook(() => usePluginLifecycle());
 
@@ -73,9 +78,7 @@ describe('usePluginLifecycle', () => {
   });
 
   it('remove sends DELETE to correct URL', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(successResponse),
-    });
+    global.fetch = jest.fn().mockResolvedValue(mockFetchResponse(successResponse));
 
     const { result } = renderHook(() => usePluginLifecycle());
 
@@ -90,9 +93,7 @@ describe('usePluginLifecycle', () => {
   });
 
   it('remove includes deleteNamespace query param when true', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(successResponse),
-    });
+    global.fetch = jest.fn().mockResolvedValue(mockFetchResponse(successResponse));
 
     const { result } = renderHook(() => usePluginLifecycle());
 
@@ -107,9 +108,7 @@ describe('usePluginLifecycle', () => {
   });
 
   it('enable sends POST to correct URL', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(successResponse),
-    });
+    global.fetch = jest.fn().mockResolvedValue(mockFetchResponse(successResponse));
 
     const { result } = renderHook(() => usePluginLifecycle());
 
@@ -124,9 +123,7 @@ describe('usePluginLifecycle', () => {
   });
 
   it('disable sends POST to correct URL', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(successResponse),
-    });
+    global.fetch = jest.fn().mockResolvedValue(mockFetchResponse(successResponse));
 
     const { result } = renderHook(() => usePluginLifecycle());
 
@@ -141,9 +138,7 @@ describe('usePluginLifecycle', () => {
   });
 
   it('reset clears all state', async () => {
-    global.fetch = jest.fn().mockResolvedValue({
-      json: () => Promise.resolve(successResponse),
-    });
+    global.fetch = jest.fn().mockResolvedValue(mockFetchResponse(successResponse));
 
     const { result } = renderHook(() => usePluginLifecycle());
 

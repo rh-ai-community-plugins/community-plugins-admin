@@ -1,4 +1,4 @@
-import { helmInstall, helmUpgrade, helmUninstall } from '../src/services/helmService';
+import { helmInstall, helmUpgrade, helmUninstall, validateHelmValues } from '../src/services/helmService';
 import { execFile } from 'child_process';
 import { getK8sBaseUrl } from '../src/utils/k8sClient';
 
@@ -13,6 +13,32 @@ const mockGetK8sBaseUrl = getK8sBaseUrl as jest.MockedFunction<typeof getK8sBase
 beforeEach(() => {
   jest.resetAllMocks();
   mockGetK8sBaseUrl.mockReturnValue('https://k8s.example.com:6443');
+});
+
+describe('validateHelmValues', () => {
+  it('accepts valid key-value pairs', () => {
+    expect(() => validateHelmValues({ 'image.tag': '2.0.0', replicas: 3, debug: true })).not.toThrow();
+  });
+
+  it('rejects non-object values', () => {
+    expect(() => validateHelmValues('not-an-object')).toThrow('must be a plain object');
+    expect(() => validateHelmValues([1, 2])).toThrow('must be a plain object');
+    expect(() => validateHelmValues(null)).toThrow('must be a plain object');
+  });
+
+  it('rejects keys with special characters', () => {
+    expect(() => validateHelmValues({ 'bad;key': 'val' })).toThrow('Invalid Helm value key');
+    expect(() => validateHelmValues({ 'key{nested}': 'val' })).toThrow('Invalid Helm value key');
+  });
+
+  it('rejects non-primitive values', () => {
+    expect(() => validateHelmValues({ key: { nested: 'obj' } })).toThrow('must be string, number, or boolean');
+    expect(() => validateHelmValues({ key: [1, 2] })).toThrow('must be string, number, or boolean');
+  });
+
+  it('rejects values with dangerous characters', () => {
+    expect(() => validateHelmValues({ key: 'val;rm -rf /' })).toThrow('Invalid Helm value');
+  });
 });
 
 describe('helmInstall', () => {

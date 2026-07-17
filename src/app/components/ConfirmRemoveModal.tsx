@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   ModalBody,
@@ -29,6 +29,10 @@ const ConfirmRemoveModal: React.FC<ConfirmRemoveModalProps> = ({
   onCancel,
 }) => {
   const [confirmText, setConfirmText] = useState('');
+
+  useEffect(() => {
+    setConfirmText('');
+  }, [pluginName]);
 
   const isMatch = confirmText === pluginName;
 

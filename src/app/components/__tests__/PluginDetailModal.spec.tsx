@@ -138,7 +138,7 @@ describe('PluginDetailModal', () => {
       expect(screen.getByLabelText('Loading plugin details')).toBeInTheDocument();
     });
 
-    it('shows spinner when pluginName is set but no state has resolved yet', () => {
+    it('shows not found alert when pluginName is set but plugin is null', () => {
       mockUsePluginDetail.mockReturnValue({
         plugin: null,
         installed: false,
@@ -148,7 +148,7 @@ describe('PluginDetailModal', () => {
       render(
         <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} onClose={jest.fn()} />,
       );
-      expect(screen.getByLabelText('Loading plugin details')).toBeInTheDocument();
+      expect(screen.getByText('Plugin not found')).toBeInTheDocument();
     });
   });
 

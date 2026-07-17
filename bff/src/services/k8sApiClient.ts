@@ -58,7 +58,10 @@ export function k8sRequest<T = unknown>(opts: K8sRequestOptions): Promise<K8sRes
       method: opts.method,
       headers,
       timeout: REQUEST_TIMEOUT_MS,
-      ...(isHttps && { ca: getCaCert(), rejectUnauthorized: !!getCaCert() }),
+      ...(isHttps && {
+        ca: getCaCert(),
+        rejectUnauthorized: process.env.K8S_TLS_INSECURE === 'true' ? false : true,
+      }),
     };
 
     const req = client.request(requestOpts, (res) => {

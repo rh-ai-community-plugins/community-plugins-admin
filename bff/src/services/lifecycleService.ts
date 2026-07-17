@@ -5,6 +5,7 @@ import {
   getModuleFederationConfig,
   kebabToCamelScope,
 } from './dashboardConfigService';
+import { k8sRequest } from './k8sApiClient';
 import { getPluginMetadata } from './pluginMetadataClient';
 import { getRegistryPlugins } from './charterClient';
 import { LifecycleStep, LifecycleResponse, ModuleFederationEntry } from '../types/lifecycle';
@@ -172,7 +173,6 @@ export async function removePlugin(
     if (deleteNamespace) {
       const nsStep = steps.find((s) => s.id === 'delete-ns')!;
       markRunning(nsStep);
-      const { k8sRequest } = await import('./k8sApiClient');
       const res = await k8sRequest({
         method: 'DELETE',
         path: `/api/v1/namespaces/${pluginName}`,
