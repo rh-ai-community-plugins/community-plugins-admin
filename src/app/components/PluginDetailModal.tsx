@@ -20,6 +20,7 @@ import {
   Bullseye,
   Split,
   SplitItem,
+  Tooltip,
 } from '@patternfly/react-core';
 import ExternalLinkAltIcon from '@patternfly/react-icons/dist/js/icons/external-link-alt-icon';
 import { usePluginDetail } from '~/app/hooks/usePluginDetail';
@@ -381,6 +382,15 @@ const PluginDetailContent: React.FC<{
               >
                 View install instructions
               </Button>
+            </FlexItem>
+          )}
+          {isAdmin && !installed && !plugin.install && (
+            <FlexItem>
+              <Tooltip content="Install configuration is not available for this plugin.">
+                <Button variant="primary" isAriaDisabled>
+                  Install
+                </Button>
+              </Tooltip>
             </FlexItem>
           )}
           <FlexItem>
