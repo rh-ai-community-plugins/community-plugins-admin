@@ -64,7 +64,6 @@ const INSTALL_STATE_OPTIONS = [
 const statusLabelColor = (status: string): 'blue' | 'green' =>
   status === 'stable' ? 'green' : 'blue';
 
-
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();
   const { installedNames, loading: installedLoading, error: installedError } = useInstalledPluginNames();
