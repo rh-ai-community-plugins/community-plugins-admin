@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useInstalledPluginNames, scopeToKebab } from '~/app/hooks/useInstalledPluginNames';
 import { useCatalog } from '~/app/hooks/useCatalog';
-import { InstalledPlugin, PluginHealthStatus } from '~/app/types/installed';
+import { InstalledPlugin, ModuleFederationEntry, PluginHealthStatus } from '~/app/types/installed';
 
 export function parseRemoteEntryUrl(remoteEntry: string): { namespace: string; service: string } | null {
   try {
@@ -80,13 +80,18 @@ export function useInstalledPlugins() {
   >(new Map());
   const [healthLoading, setHealthLoading] = useState(false);
 
+  const entriesRef = useRef<ModuleFederationEntry[]>([]);
+  const entriesKey = useMemo(() => entries.map((e) => e.scope).join(','), [entries]);
+  entriesRef.current = entries;
+
   useEffect(() => {
-    if (namesLoading || entries.length === 0) return;
+    const currentEntries = entriesRef.current;
+    if (namesLoading || currentEntries.length === 0) return;
 
     const controller = new AbortController();
     setHealthLoading(true);
 
-    const checks = entries.map(async (entry) => {
+    const checks = currentEntries.map(async (entry) => {
       const name = scopeToKebab(entry.scope);
       const parsed = parseRemoteEntryUrl(entry.remoteEntry);
       if (!parsed) {
@@ -114,7 +119,7 @@ export function useInstalledPlugins() {
       });
 
     return () => controller.abort();
-  }, [namesLoading, entries]);
+  }, [namesLoading, entriesKey]);
 
   const installedPlugins: InstalledPlugin[] = useMemo(() => {
     if (namesLoading) return [];
