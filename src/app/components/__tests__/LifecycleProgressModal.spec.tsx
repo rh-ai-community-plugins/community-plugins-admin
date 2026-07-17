@@ -100,6 +100,22 @@ describe('LifecycleProgressModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('does not call onClose when Close is clicked while operation is in progress', async () => {
+    const onClose = jest.fn();
+    render(
+      <LifecycleProgressModal
+        isOpen={true}
+        operation="install"
+        steps={sampleSteps}
+        success={null}
+        message={null}
+        onClose={onClose}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /close/i }));
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('calls onClose when Done is clicked', async () => {
     const onClose = jest.fn();
     render(
