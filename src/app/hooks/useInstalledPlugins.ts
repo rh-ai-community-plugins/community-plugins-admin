@@ -51,6 +51,12 @@ async function fetchDeploymentHealth(
       { signal },
     );
     if (!res.ok) {
+      if (res.status === 404) {
+        console.warn(
+          `Deployment "${service}" not found in namespace "${namespace}". ` +
+          `Health check assumes the Deployment name matches the Service hostname from remoteEntry.`,
+        );
+      }
       return { healthStatus: 'unknown' };
     }
     const deployment = await res.json();
