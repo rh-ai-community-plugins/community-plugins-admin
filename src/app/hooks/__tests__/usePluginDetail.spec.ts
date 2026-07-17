@@ -131,6 +131,22 @@ it('includes installedLoading in loading state', () => {
   expect(result.current.loading).toBe(true);
 });
 
+it('does not report loading when error is present even if installedLoading is true', async () => {
+  (global.fetch as jest.Mock).mockResolvedValueOnce({
+    ok: false,
+    status: 500,
+    json: () => Promise.resolve({}),
+  });
+
+  const { result } = renderHook(() => usePluginDetail('bad-plugin', emptyNames, true));
+
+  await waitFor(() => {
+    expect(result.current.error).toBe('Failed to fetch plugin details: 500');
+  });
+
+  expect(result.current.loading).toBe(false);
+});
+
 it('encodes plugin name in URL', async () => {
   (global.fetch as jest.Mock).mockResolvedValueOnce({
     ok: true,
