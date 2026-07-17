@@ -148,7 +148,7 @@ export function useInstalledPlugins() {
   }, [namesLoading, entries, catalogPlugins, healthMap]);
 
   const loading = namesLoading || catalogLoading;
-  const error = namesError ?? catalogError ?? null;
+  const error = namesError ?? null;
 
   const refetch = useCallback(() => {
     namesRefetch();
