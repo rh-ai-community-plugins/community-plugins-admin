@@ -405,7 +405,7 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
       )}
       {!loading && !error && !plugin && pluginName && (
         <>
-          <ModalHeader title={pluginName} />
+          <ModalHeader title={pluginName ?? ''} />
           <ModalBody>
             <Bullseye>
               <Spinner aria-label="Loading plugin details" />
