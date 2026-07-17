@@ -291,6 +291,7 @@ Key values in `chart/values.yaml`:
 | `bff.resources.requests.memory` | `128Mi` | BFF memory request |
 | `bff.resources.limits.cpu` | `200m` | BFF CPU limit |
 | `bff.resources.limits.memory` | `256Mi` | BFF memory limit |
+| `bff.serviceAccount.name` | `""` | Use a pre-existing ServiceAccount (set `bff.serviceAccount.create=false`) |
 | `bff.rbac.create` | `true` | Create ClusterRole and ClusterRoleBinding for the BFF |
 | `bff.charterRegistryUrl` | `https://raw.githubusercontent.com/.../plugins.yaml` | Charter registry URL |
 | `bff.cache.charterTtlMs` | `300000` | Charter registry cache TTL (ms) |
