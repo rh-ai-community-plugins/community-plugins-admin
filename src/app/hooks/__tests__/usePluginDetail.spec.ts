@@ -35,10 +35,6 @@ beforeEach(() => {
   global.fetch = jest.fn();
 });
 
-afterEach(() => {
-  (global.fetch as jest.Mock).mockRestore?.();
-});
-
 it('returns null plugin and no loading when pluginName is null', () => {
   const { result } = renderHook(() => usePluginDetail(null));
   expect(result.current.plugin).toBeNull();

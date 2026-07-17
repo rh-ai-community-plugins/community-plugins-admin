@@ -284,7 +284,7 @@ describe('PluginDetailModal', () => {
   });
 
   describe('action buttons', () => {
-    it('does not show action buttons for non-admin users', () => {
+    it('does not show action buttons for non-admin users but shows Close', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
       render(
         <PluginDetailModal pluginName="test-plugin" isAdmin={false} onClose={jest.fn()} />,
@@ -293,6 +293,8 @@ describe('PluginDetailModal', () => {
       expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Disable' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
+      const closeButtons = screen.getAllByRole('button', { name: 'Close' });
+      expect(closeButtons.length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows Install button for admin when plugin is not installed', () => {

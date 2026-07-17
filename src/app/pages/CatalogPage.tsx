@@ -43,7 +43,7 @@ import { useInstalledPluginNames } from '~/app/hooks/useInstalledPluginNames';
 import { useCurrentUser } from '~/app/hooks/useCurrentUser';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { CatalogPlugin } from '~/app/types/catalog';
-import { maintenanceLabelColor, maintenanceDisplayText } from '~/app/utils/maintenance';
+import { maintenanceLabelColor, maintenanceDisplayText, statusLabelColor } from '~/app/utils/maintenance';
 
 type FilterKey = 'status' | 'maintenance' | 'installState';
 
@@ -61,9 +61,6 @@ const INSTALL_STATE_OPTIONS = [
   { value: 'installed', label: 'Installed' },
   { value: 'available', label: 'Available' },
 ];
-
-const statusLabelColor = (status: string): 'blue' | 'green' =>
-  status === 'stable' ? 'green' : 'blue';
 
 const CatalogPage: React.FC = () => {
   const { plugins, loading, isRefetching, error, refetch } = useCatalog();

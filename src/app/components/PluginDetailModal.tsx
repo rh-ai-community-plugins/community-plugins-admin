@@ -25,7 +25,11 @@ import {
 import ExternalLinkAltIcon from '@patternfly/react-icons/dist/js/icons/external-link-alt-icon';
 import { usePluginDetail } from '~/app/hooks/usePluginDetail';
 import { CatalogPlugin } from '~/app/types/catalog';
-import { maintenanceLabelColor, maintenanceDisplayText } from '~/app/utils/maintenance';
+import {
+  maintenanceLabelColor,
+  maintenanceDisplayText,
+  statusLabelColor,
+} from '~/app/utils/maintenance';
 
 interface PluginDetailModalProps {
   pluginName: string | null;
@@ -33,8 +37,14 @@ interface PluginDetailModalProps {
   onClose: () => void;
 }
 
-const statusLabelColor = (status: string): 'blue' | 'green' =>
-  status === 'stable' ? 'green' : 'blue';
+const isSafeUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:';
+  } catch {
+    return false;
+  }
+};
 
 const deploymentModelLabel = (model: string): string => {
   switch (model) {
@@ -251,7 +261,7 @@ const PluginDetailContent: React.FC<{
               <DescriptionListTerm>Support</DescriptionListTerm>
               <DescriptionListDescription>
                 <Flex gap={{ default: 'gapMd' }}>
-                  {plugin.support.repo && (
+                  {plugin.support.repo && isSafeUrl(plugin.support.repo) && (
                     <FlexItem>
                       <Button
                         variant="link"
@@ -267,7 +277,7 @@ const PluginDetailContent: React.FC<{
                       </Button>
                     </FlexItem>
                   )}
-                  {plugin.support.docs && (
+                  {plugin.support.docs && isSafeUrl(plugin.support.docs) && (
                     <FlexItem>
                       <Button
                         variant="link"
@@ -283,7 +293,7 @@ const PluginDetailContent: React.FC<{
                       </Button>
                     </FlexItem>
                   )}
-                  {plugin.support.issues && (
+                  {plugin.support.issues && isSafeUrl(plugin.support.issues) && (
                     <FlexItem>
                       <Button
                         variant="link"
@@ -305,51 +315,49 @@ const PluginDetailContent: React.FC<{
           )}
         </DescriptionList>
       </ModalBody>
-      {isAdmin && (
-        <ModalFooter>
-          <Flex gap={{ default: 'gapSm' }}>
-            {!installed && (
+      <ModalFooter>
+        <Flex gap={{ default: 'gapSm' }}>
+          {isAdmin && !installed && (
+            <FlexItem>
+              <Tooltip content="Install is not yet available">
+                <Button variant="primary" isAriaDisabled>
+                  Install
+                </Button>
+              </Tooltip>
+            </FlexItem>
+          )}
+          {isAdmin && installed && (
+            <>
               <FlexItem>
-                <Tooltip content="Install is not yet available">
+                <Tooltip content="Upgrade is not yet available">
                   <Button variant="primary" isAriaDisabled>
-                    Install
+                    Upgrade
                   </Button>
                 </Tooltip>
               </FlexItem>
-            )}
-            {installed && (
-              <>
-                <FlexItem>
-                  <Tooltip content="Upgrade is not yet available">
-                    <Button variant="primary" isAriaDisabled>
-                      Upgrade
-                    </Button>
-                  </Tooltip>
-                </FlexItem>
-                <FlexItem>
-                  <Tooltip content="Enable/Disable is not yet available">
-                    <Button variant="secondary" isAriaDisabled>
-                      Disable
-                    </Button>
-                  </Tooltip>
-                </FlexItem>
-                <FlexItem>
-                  <Tooltip content="Remove is not yet available">
-                    <Button variant="danger" isAriaDisabled>
-                      Remove
-                    </Button>
-                  </Tooltip>
-                </FlexItem>
-              </>
-            )}
-            <FlexItem>
-              <Button variant="link" onClick={onClose}>
-                Close
-              </Button>
-            </FlexItem>
-          </Flex>
-        </ModalFooter>
-      )}
+              <FlexItem>
+                <Tooltip content="Enable/Disable is not yet available">
+                  <Button variant="secondary" isAriaDisabled>
+                    Disable
+                  </Button>
+                </Tooltip>
+              </FlexItem>
+              <FlexItem>
+                <Tooltip content="Remove is not yet available">
+                  <Button variant="danger" isAriaDisabled>
+                    Remove
+                  </Button>
+                </Tooltip>
+              </FlexItem>
+            </>
+          )}
+          <FlexItem>
+            <Button variant="link" onClick={onClose}>
+              Close
+            </Button>
+          </FlexItem>
+        </Flex>
+      </ModalFooter>
     </>
   );
 };

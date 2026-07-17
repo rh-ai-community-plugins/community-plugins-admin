@@ -24,6 +24,7 @@ export function usePluginDetail(pluginName: string | null): PluginDetailResult {
     }
 
     const controller = new AbortController();
+    setPlugin(null);
     setLoading(true);
     setError(null);
 
