@@ -21,9 +21,9 @@ describe('App Component', () => {
     expect(screen.getByTestId('routes')).toBeInTheDocument();
   });
 
-  it('should render a main landmark element', () => {
+  it('should render the content wrapper', () => {
     render(<App />);
-    expect(screen.getByRole('main')).toBeInTheDocument();
+    expect(document.querySelector('.community-plugin-content')).toBeInTheDocument();
   });
 
   describe('error boundary', () => {
