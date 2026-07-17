@@ -59,6 +59,9 @@ bff:
     tag: ""
     pullPolicy: IfNotPresent
   replicaCount: 1
+  serviceAccount:
+    create: true
+    annotations: {}
   service:
     type: ClusterIP
     port: 3000
