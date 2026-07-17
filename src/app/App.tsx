@@ -57,7 +57,7 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
         </PageSection>
       );
     }
-    return <div key={this.state.retryKey}>{this.props.children}</div>;
+    return <React.Fragment key={this.state.retryKey}>{this.props.children}</React.Fragment>;
   }
 }
 
