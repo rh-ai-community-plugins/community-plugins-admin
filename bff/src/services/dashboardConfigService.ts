@@ -140,13 +140,27 @@ async function patchModuleFederationConfig(
   } else {
     const targetIndex = containers.findIndex((c) => c.name === DASHBOARD_DEPLOYMENT);
     const ci = targetIndex >= 0 ? targetIndex : 0;
-    const patch = [
-      {
-        op: 'add' as const,
-        path: `/spec/template/spec/containers/${ci}/env/-`,
-        value: { name: MF_ENV_VAR, value: configValue },
-      },
-    ];
+    const targetContainer = containers[ci];
+    const hasEnvArray = Array.isArray(targetContainer?.env);
+
+    // RFC 6902 §4.1: `env/-` appends to an existing array; if `env` does not
+    // exist on the container yet (fresh dashboard install), use `env` without
+    // the `/-` suffix to create the array.
+    const patch = hasEnvArray
+      ? [
+          {
+            op: 'add' as const,
+            path: `/spec/template/spec/containers/${ci}/env/-`,
+            value: { name: MF_ENV_VAR, value: configValue },
+          },
+        ]
+      : [
+          {
+            op: 'add' as const,
+            path: `/spec/template/spec/containers/${ci}/env`,
+            value: [{ name: MF_ENV_VAR, value: configValue }],
+          },
+        ];
 
     const patchRes = await k8sRequest({
       method: 'PATCH',
