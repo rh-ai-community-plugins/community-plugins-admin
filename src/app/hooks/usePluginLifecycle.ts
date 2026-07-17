@@ -3,12 +3,15 @@ import { LifecycleResponse, LifecycleOperation } from '~/app/types/lifecycle';
 
 const API_BASE = '/community-plugins-admin/api/plugins';
 
-interface PluginLifecycleState {
+export interface PluginLifecycleState {
   loading: boolean;
   operation: LifecycleOperation | null;
   result: LifecycleResponse | null;
   error: string | null;
 }
+
+/** Combined type returned by usePluginLifecycle and accepted as a prop by PluginDetailModal. */
+export type PluginLifecycle = PluginLifecycleState & PluginLifecycleActions;
 
 export interface PluginLifecycleActions {
   install: (pluginName: string, namespace?: string, values?: Record<string, unknown>) => Promise<LifecycleResponse>;
@@ -39,7 +42,7 @@ async function lifecycleRequest(
   return data;
 }
 
-export function usePluginLifecycle(): PluginLifecycleState & PluginLifecycleActions {
+export function usePluginLifecycle(): PluginLifecycle {
   const [state, setState] = useState<PluginLifecycleState>({
     loading: false,
     operation: null,

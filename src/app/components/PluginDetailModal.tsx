@@ -25,7 +25,7 @@ import {
 import ExternalLinkAltIcon from '@patternfly/react-icons/dist/js/icons/external-link-alt-icon';
 import BanIcon from '@patternfly/react-icons/dist/js/icons/ban-icon';
 import { usePluginDetail } from '~/app/hooks/usePluginDetail';
-import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
+import { PluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import { CatalogPlugin } from '~/app/types/catalog';
 import {
   maintenanceLabelColor,
@@ -43,6 +43,8 @@ interface PluginDetailModalProps {
   installedLoading: boolean;
   /** Names of plugins with an existing Helm release (may include disabled plugins). */
   helmInstalledNames?: Set<string>;
+  /** Shared lifecycle instance from the parent page — prevents concurrent operations racing. */
+  lifecycle: PluginLifecycle;
   onClose: () => void;
   onLifecycleComplete?: () => void;
 }
@@ -445,11 +447,11 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
   installedNames,
   installedLoading,
   helmInstalledNames,
+  lifecycle,
   onClose,
   onLifecycleComplete,
 }) => {
   const { plugin, installed, loading, error } = usePluginDetail(pluginName, installedNames, installedLoading);
-  const lifecycle = usePluginLifecycle();
 
   const disabled = !installed && !!pluginName && !!(helmInstalledNames?.has(pluginName));
 

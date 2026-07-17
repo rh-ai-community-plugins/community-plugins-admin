@@ -120,6 +120,7 @@ const InstalledPage: React.FC = () => {
       actions.push({
         title: 'Upgrade',
         onClick: () => handleUpgrade(plugin.name),
+        isDisabled: lifecycle.loading,
       });
     }
 
@@ -127,11 +128,13 @@ const InstalledPage: React.FC = () => {
       {
         title: 'Disable',
         onClick: () => handleDisable(plugin.name),
+        isDisabled: lifecycle.loading,
       },
       { isSeparator: true },
       {
         title: 'Remove',
         onClick: () => setRemoveTarget(plugin.name),
+        isDisabled: lifecycle.loading,
       },
     );
 
@@ -293,6 +296,7 @@ const InstalledPage: React.FC = () => {
         isAdmin={isAdmin}
         installedNames={installedNames}
         installedLoading={loading}
+        lifecycle={lifecycle}
         onClose={() => setSelectedPlugin(null)}
         onLifecycleComplete={refetch}
       />
