@@ -77,7 +77,7 @@ A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) opens from ei
 
 ### Custom Hooks
 
-Twelve hooks in `src/app/hooks/` provide data fetching, state management, and API integration:
+Eleven hooks in `src/app/hooks/` provide data fetching, state management, and API integration:
 
 - `useCurrentUser` — Fetches authenticated user info from `/api/status`.
 - `useProjects` — Fetches accessible projects from the OpenShift projects API.

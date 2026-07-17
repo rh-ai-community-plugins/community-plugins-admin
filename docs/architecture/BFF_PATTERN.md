@@ -231,7 +231,7 @@ Resolves the K8s API base URL:
 - **In-cluster**: Uses `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT` env vars
 - **Local dev**: Uses the `K8S_API_BASE` env var
 
-The BFF uses the user's forwarded token for operations that require user-level RBAC (e.g., checking permissions). For lifecycle operations (Helm install/upgrade/uninstall), it uses its own ServiceAccount token.
+The BFF always uses the user's forwarded token, never a service account token. This ensures all actions — including lifecycle operations like Helm install/upgrade/uninstall — respect the user's RBAC permissions.
 
 ---
 
