@@ -48,7 +48,7 @@ The BFF runs with a dedicated ServiceAccount that has cluster-level RBAC permiss
 Install directly from the OCI registry — no need to clone this repo:
 
 ```bash
-helm install community-plugins-admin oci://quay.io/OWNER/community-plugins-admin-chart \
+helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
   --version 0.1.0 \
   --namespace community-plugins-admin \
   --create-namespace

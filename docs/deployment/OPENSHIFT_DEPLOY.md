@@ -18,7 +18,7 @@ This guide walks through deploying the plugin on an OpenShift cluster that alrea
 Install directly from the OCI registry — no need to clone the repo:
 
 ```bash
-helm install community-plugins-admin oci://quay.io/OWNER/community-plugins-admin-chart \
+helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
   --version 0.1.0 \
   --namespace community-plugins-admin \
   --create-namespace
@@ -43,7 +43,7 @@ This creates:
 Pass `--set` flags to customize the installation:
 
 ```bash
-helm install community-plugins-admin oci://quay.io/OWNER/community-plugins-admin-chart \
+helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
   --version 0.1.0 \
   --namespace community-plugins-admin \
   --create-namespace \
@@ -53,7 +53,7 @@ helm install community-plugins-admin oci://quay.io/OWNER/community-plugins-admin
 To deploy the frontend only (no BFF):
 
 ```bash
-helm install community-plugins-admin oci://quay.io/OWNER/community-plugins-admin-chart \
+helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
   --version 0.1.0 \
   --namespace community-plugins-admin \
   --create-namespace \
@@ -276,7 +276,7 @@ Key values in `chart/values.yaml`:
 |---|---|---|
 | `nameOverride` | `"community-plugins-admin"` | Override `.Chart.Name` for resource naming |
 | `fullnameOverride` | `""` | Override fully qualified resource names |
-| `image.repository` | `quay.io/OWNER/community-plugins-admin` | Frontend container image |
+| `image.repository` | `quay.io/rh-ai-community-plugins/community-plugins-admin` | Frontend container image |
 | `image.tag` | `""` (defaults to appVersion) | Frontend image tag |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy |
 | `replicaCount` | `1` | Frontend replicas |
@@ -295,7 +295,7 @@ Key values in `chart/values.yaml`:
 | `tolerations` | `[]` | Tolerations for pod scheduling |
 | `affinity` | `{}` | Affinity rules for pod scheduling |
 | `bff.enabled` | `true` | Deploy the BFF service |
-| `bff.image.repository` | `quay.io/OWNER/community-plugins-admin-bff` | BFF container image |
+| `bff.image.repository` | `quay.io/rh-ai-community-plugins/community-plugins-admin-bff` | BFF container image |
 | `bff.image.tag` | `""` (defaults to appVersion) | BFF image tag |
 | `bff.replicaCount` | `1` | BFF replicas |
 | `bff.service.port` | `3000` | BFF Service port |
