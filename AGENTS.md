@@ -29,7 +29,7 @@ npm run lint          # ESLint on src/ + markdownlint on **/*.md
 To run a single test file:
 
 ```bash
-npx jest src/app/hooks/useCurrentUser.test.ts
+npx jest src/app/hooks/__tests__/useCurrentUser.spec.ts
 ```
 
 ### BFF Service Commands
@@ -49,10 +49,10 @@ npm run lint          # ESLint on bff/src/
 
 The plugin exposes two remote modules to the RHOAI dashboard host via Webpack Module Federation (configured inline in `config/webpack.common.js`):
 
-- **`./extensions`** (`src/rhoai/extensions.ts`) — Defines seven extension points:
+- **`./extensions`** (`src/rhoai/extensions.ts`) — Defines six extension points:
   - `app.area` — registers the `community-plugins-admin` feature area
   - `app.navigation/section` (x2) — `community-plugins` shared parent section (with `CommunityNavIcon`) and `community-plugins-admin` plugin subsection (with `CommunityPluginsAdminNavIcon`)
-  - `app.navigation/href` (x3) — "User Info", "Cluster Resources", and "Namespace Summary" nav items under the `community-plugins-admin` section
+  - `app.navigation/href` (x2) — "Catalog" and "Installed" nav items under the `community-plugins-admin` section
   - `app.route` — mounts the App component with wildcard routing at `/community-plugins-admin/*`
 - **`./Icon`** (`src/app/components/CommunityPluginsAdminNavIcon.tsx`) — SVG icon for the plugin's nav subsection. A separate `CommunityNavIcon.tsx` provides the icon for the shared `community-plugins` parent section.
 
@@ -60,28 +60,90 @@ Shared singletons (react, react-dom, react-router-dom, @patternfly/react-core, @
 
 ### Pages
 
-The plugin has three pages, routed under `/community-plugins-admin/*`. These are currently seed/demo pages that will be replaced with the actual plugin UI:
+The plugin has two pages, routed under `/community-plugins-admin/*`:
 
-- **User Info page** (`src/app/pages/UserInfoPage.tsx`) — Displays the authenticated user's information via `/api/status` (dashboard API pattern).
-- **Cluster Resources page** (`src/app/pages/ClusterResourcesPage.tsx`) — Create and list Deployments and Services via the dashboard's K8s API pass-through (`/api/k8s/*` pattern).
-- **Namespace Summary page** (`src/app/pages/NamespaceSummaryPage.tsx`) — Displays aggregated namespace and pod data via the plugin's own BFF service (BFF pattern).
+- **Catalog page** (`src/app/pages/CatalogPage.tsx`) — Browse available community plugins from the charter registry. Displays a PatternFly card grid with search, filtering (status, maintenance tier, install state), and version comparison for installed plugins.
+- **Installed page** (`src/app/pages/InstalledPage.tsx`) — View and manage installed community plugins. Shows a table with health status, version, maintenance tier, and admin actions (upgrade, disable, remove).
 
-These will be replaced with pages for plugin catalog browsing, plugin detail views, and admin management.
+A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) opens from either page to show full plugin metadata and lifecycle action buttons (install, upgrade, remove, enable, disable). The modal preserves parent page state (filters, scroll, search).
+
+### Components
+
+- **`CommunityBanner.tsx`** — [SHARED] Orange banner identifying community plugin pages. Must not be removed.
+- **`CommunityPluginsAdminNavIcon.tsx`** — SVG icon for the plugin's sidebar nav entry.
+- **`PluginDetailModal.tsx`** — Full plugin detail overlay with metadata sections, action buttons (admin-only), and lifecycle integration.
+- **`ConfirmRemoveModal.tsx`** — Confirmation dialog requiring the user to type the plugin name before removal.
+- **`LifecycleProgressModal.tsx`** — Step-by-step progress display for install/upgrade/remove operations using PatternFly `ProgressStepper`.
+- **`DashboardRestartBanner.tsx`** — Monitors dashboard pod rollout after lifecycle operations and displays real-time status (progressing, complete, error) with auto-dismiss.
+
+### Contexts
+
+- `src/app/contexts/DashboardStatusContext.tsx` — `DashboardStatusProvider` and `useDashboardStatus` hook. Wraps the app to provide dashboard rollout monitoring state (start/stop monitoring, rollout status, error count) consumed by `DashboardRestartBanner`.
 
 ### Custom Hooks
 
-Six hooks in `src/app/hooks/` provide data fetching and API integration. These are seed hooks demonstrating dashboard integration patterns — they will be replaced or adapted as the plugin's actual UI is built:
+Twelve hooks in `src/app/hooks/` provide data fetching, state management, and API integration:
 
 - `useCurrentUser` — Fetches authenticated user info from `/api/status`.
 - `useProjects` — Fetches accessible projects from the OpenShift projects API.
 - `useFavoriteProjects` — Manages localStorage-backed project favorites.
-- `useK8sResources` — Generic hook for listing K8s resources with create/delete helpers.
+- `useLastSelectedProject` — Persists the last-selected project in localStorage.
 - `useAccessReview` — Checks RBAC permissions via SelfSubjectAccessReview.
-- `useNamespaceSummary` — Fetches aggregated namespace and pod summary from the BFF endpoint.
+- `useCatalog` — Fetches the merged plugin catalog from the BFF (`GET /api/catalog`). Returns plugin list with loading/error/refetch states.
+- `useInstalledPluginNames` — Reads `MODULE_FEDERATION_CONFIG` from the dashboard to determine which plugins are currently enabled.
+- `useHelmReleasedPlugins` — Lists Helm releases via the BFF (`GET /api/plugins`) to find all deployed plugins, including disabled ones. Provides version mapping.
+- `useInstalledPlugins` — Merges installed plugin names, Helm releases, and catalog metadata to produce a unified installed plugins list with health status.
+- `usePluginDetail` — Fetches full metadata for a single plugin from the BFF (`GET /api/catalog/:name`) and resolves installed state.
+- `usePluginLifecycle` — Provides install/upgrade/remove/enable/disable operations that call BFF lifecycle endpoints. Tracks operation progress, loading, and result state.
+- `useDashboardRollout` — Polls `GET /api/dashboard/status` to track dashboard deployment rollout progress after lifecycle operations. Returns rollout state, loading, and error count.
+
+### Frontend Types
+
+- `src/app/types/catalog.ts` — `CatalogPlugin` type for the merged catalog response from the BFF.
+- `src/app/types/installed.ts` — `InstalledPlugin` and `PluginHealthStatus` types for the installed plugins view.
+- `src/app/types/lifecycle.ts` — `LifecycleResponse`, `LifecycleStep`, and `LifecycleOperation` types for plugin lifecycle operations.
+
+### Utilities
+
+- `src/app/utils/maintenance.ts` — Helper functions for label colors and display text for maintenance tiers, status badges, and deployment model labels.
 
 ### BFF Service
 
-The `bff/` directory contains a standalone Express.js + TypeScript backend service that implements the BFF pattern. The dashboard proxies requests from `/community-plugins-admin/api/*` to this service, forwarding the user's Bearer token. The BFF is expected to handle aggregation and caching of plugin metadata fetched from multiple external repos (charter registry + individual plugin repos). See `docs/architecture/BFF_PATTERN.md` for details.
+The `bff/` directory contains a standalone Express.js + TypeScript backend service that implements the BFF pattern. The dashboard proxies requests from `/community-plugins-admin/api/*` to this service, forwarding the user's Bearer token. See `docs/architecture/BFF_PATTERN.md` for details.
+
+The BFF app is defined in `bff/src/app.ts` (Express middleware and routes) and started in `bff/src/server.ts` (listen + K8s config logging). This split allows tests to import the app without starting a persistent server.
+
+**Endpoints:**
+
+- `GET /api/health` — Liveness probe.
+- `GET /api/config` — Exposes dashboard namespace and deployment name configuration.
+- `GET /api/catalog` — Merged list of all community plugins (registry entry + resolved metadata). Supports `?refresh=true` to force cache invalidation.
+- `GET /api/catalog/:name` — Full metadata for a single plugin.
+- `GET /api/plugins` — List all Helm-deployed plugin releases across namespaces.
+- `POST /api/plugins/:name/install` — Install a plugin via Helm. Accepts `namespace` and `values` in the request body.
+- `POST /api/plugins/:name/upgrade` — Upgrade a plugin to the latest chart version. Accepts optional `namespace` and `values` in request body.
+- `DELETE /api/plugins/:name` — Remove a plugin (Helm uninstall + config cleanup). Supports `?deleteNamespace=true` and `?namespace=<string>` query parameters.
+- `POST /api/plugins/:name/enable` — Add a plugin's Module Federation entry to `MODULE_FEDERATION_CONFIG`.
+- `POST /api/plugins/:name/disable` — Remove a plugin's entry from `MODULE_FEDERATION_CONFIG` (plugin stays deployed but hidden).
+- `GET /api/dashboard/status` — Reads the dashboard deployment and derives rollout state (`progressing`, `complete`, `error`) with pod counts.
+
+All lifecycle endpoints require a Bearer token (forwarded from the dashboard) and validate the plugin name against `^[a-z][a-z0-9-]{0,62}[a-z0-9]$`.
+
+**Services:**
+
+- `bff/src/services/charterClient.ts` — Fetches `plugins.yaml` from the charter registry on GitHub, parses YAML, caches in-memory with configurable TTL (default 5 min, `CHARTER_CACHE_TTL_MS` env var). Serves stale cache on fetch failure.
+- `bff/src/services/pluginMetadataClient.ts` — Fetches `plugin.yaml` from each plugin's GitHub repo, parses and validates, per-plugin cache with TTL (`PLUGIN_CACHE_TTL_MS`), concurrent fetches with configurable limit (`PLUGIN_FETCH_CONCURRENCY`, default 5). Returns null for plugins with missing/invalid metadata.
+- `bff/src/services/dashboardConfigService.ts` — Reads and modifies `MODULE_FEDERATION_CONFIG` on the `rhods-dashboard` deployment. Handles JSON Patch operations with optimistic concurrency control (409 conflict retry).
+- `bff/src/services/helmService.ts` — Executes Helm CLI operations (install, upgrade, uninstall, list) using temporary kubeconfig files. Validates Helm values and discovers plugin namespaces.
+- `bff/src/services/lifecycleService.ts` — Orchestrates plugin lifecycle operations (install, upgrade, remove, enable, disable) by coordinating chart resolution, Helm execution, and config updates.
+- `bff/src/services/k8sApiClient.ts` — Low-level K8s API HTTP client with CA cert caching, TLS configuration, and request timeout handling.
+- `bff/src/utils/httpClient.ts` — Shared HTTP fetch utility with redirect following, used by charter and metadata clients.
+- `bff/src/utils/k8sClient.ts` — K8s API base URL resolution (in-cluster vs local dev).
+
+**Types:**
+
+- `bff/src/types/catalog.ts` — `RegistryPlugin` (upstream YAML schema), `PluginMetadata` (plugin.yaml schema), and `CatalogPlugin` (camelCase API response shape).
+- `bff/src/types/lifecycle.ts` — `InstallRequest`, `UpgradeRequest`, and related types for lifecycle operations.
 
 ### Entry Point Chain
 
@@ -95,7 +157,7 @@ The `bff/` directory contains a standalone Express.js + TypeScript backend servi
 
 - `config/webpack.common.js` — Shared config: entry point, loaders, Module Federation, path alias `~` → `./src`
 - `config/webpack.dev.js` — Dev server on port 9500, proxies `/community-plugins-admin/api` to BFF at `localhost:3000` and `/community-plugins-admin` to dashboard at `localhost:8443`
-- `config/webpack.prod.js` — Output to `dist/`, CSS extraction, vendor chunk splitting
+- `config/webpack.prod.js` — Output to `dist/`, source maps, chunk splitting disabled
 
 ### Test Setup
 
@@ -110,12 +172,15 @@ Jest with `ts-jest` preset and `jsdom` environment (`jest.config.js`). `jest.set
 ### Deployment
 
 - **Frontend container**: Multi-stage build in `Containerfile` — UBI9 Node 22 builder → UBI9 Nginx 1.24 serving `dist/` on port 8080 as UID 1001. Nginx adds CORS header on `remoteEntry.js`.
-- **BFF container**: Multi-stage build in `bff/Containerfile` — UBI9 Node 22 builder → UBI9 Node 22 runtime on port 3000 as UID 1001.
-- **Helm chart**: `chart/` deploys to Kubernetes with Deployment + Service for both frontend and BFF. Frontend defaults to `quay.io/OWNER/community-plugins-admin:latest`, BFF to `quay.io/OWNER/community-plugins-admin-bff:latest`.
+- **BFF container**: Multi-stage build in `bff/Containerfile` — UBI9 Node 22 builder → UBI9 Node 22 runtime on port 3000 as UID 1001. Includes Helm binary for lifecycle operations.
+- **Helm chart**: `chart/` deploys to Kubernetes with:
+  - Frontend: Deployment + Service (Nginx on port 8080)
+  - BFF: Deployment + Service (Node.js on port 3000) + ServiceAccount + ClusterRole + ClusterRoleBinding
+  - The BFF ServiceAccount has cluster-level permissions for managing plugin deployments, namespaces, and the dashboard's `MODULE_FEDERATION_CONFIG`.
 
 ### CI/CD Workflows
 
-- `.github/workflows/ci.yml` — Runs tests and lint for both frontend and BFF on push/PR to main.
+- `.github/workflows/ci.yml` — Runs tests and lint for both frontend and BFF on push/PR to main and dev. Also lints the Helm chart (helm lint, helm template, RBAC safety guard verification).
 - `.github/workflows/build-push.yml` — Builds and pushes both container images to Quay.io. Manually triggered via `workflow_dispatch` with a version input.
 
 ## Documentation
@@ -123,9 +188,10 @@ Jest with `ts-jest` preset and `jsdom` environment (`jest.config.js`). `jest.set
 Project documentation lives under `docs/` in semantic subfolders:
 
 ```text
-docs/architecture/   — Plugin system internals and extension contract
-docs/development/    — Local dev setup and dashboard API reference
+docs/architecture/   — Plugin system internals, extension contract, BFF pattern
+docs/development/    — Local dev setup, project layout, customization, build & push
 docs/deployment/     — OpenShift deployment with Helm and dashboard registration
+docs/project/        — Project plan and phase tracking
 ```
 
 ## Key Conventions
@@ -133,4 +199,4 @@ docs/deployment/     — OpenShift deployment with Helm and dashboard registrati
 - Path alias: `~` maps to `./src` (webpack) and `@` maps to `./src` (jest). Use `~` in source code imports.
 - UI components use **PatternFly 6** (`@patternfly/react-core`, `@patternfly/react-icons`).
 - TypeScript strict mode is enabled. Target is ES2020 with ESNext modules and `react-jsx` transform.
-- No standalone ESLint config file — uses `@typescript-eslint` defaults via dev dependencies.
+- ESLint is configured via `.eslintrc.json` at the repo root (browser env for frontend) and `bff/.eslintrc.json` (node env for BFF). Both extend `eslint:recommended` and `plugin:@typescript-eslint/recommended`.

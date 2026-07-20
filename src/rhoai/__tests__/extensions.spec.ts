@@ -2,9 +2,8 @@ import {
   communityPluginsAdminAreaExtension,
   communityPluginsSectionExtension,
   communityPluginsAdminSectionExtension,
-  userInfoNavExtension,
-  clusterResourcesNavExtension,
-  namespaceSummaryNavExtension,
+  catalogNavExtension,
+  installedNavExtension,
   communityPluginsAdminRouteExtension,
   extensions,
 } from '../extensions';
@@ -46,31 +45,22 @@ describe('RHOAI Plugin Extensions', () => {
   });
 
   describe('navigation extensions', () => {
-    it('should define User Info nav item under community-plugins-admin section', () => {
-      expect(userInfoNavExtension.type).toBe('app.navigation/href');
-      expect(userInfoNavExtension.properties.id).toBe('community-plugins-admin-user-info');
-      expect(userInfoNavExtension.properties.title).toBe('User Info');
-      expect(userInfoNavExtension.properties.href).toBe('/community-plugins-admin/user-info');
-      expect(userInfoNavExtension.properties.section).toBe('community-plugins-admin');
-      expect(userInfoNavExtension.properties.path).toBe('/community-plugins-admin/user-info/*');
+    it('should define Catalog nav item under community-plugins-admin section', () => {
+      expect(catalogNavExtension.type).toBe('app.navigation/href');
+      expect(catalogNavExtension.properties.id).toBe('community-plugins-admin-catalog');
+      expect(catalogNavExtension.properties.title).toBe('Catalog');
+      expect(catalogNavExtension.properties.href).toBe('/community-plugins-admin/catalog');
+      expect(catalogNavExtension.properties.section).toBe('community-plugins-admin');
+      expect(catalogNavExtension.properties.path).toBe('/community-plugins-admin/catalog/*');
     });
 
-    it('should define Cluster Resources nav item under community-plugins-admin section', () => {
-      expect(clusterResourcesNavExtension.type).toBe('app.navigation/href');
-      expect(clusterResourcesNavExtension.properties.id).toBe('community-plugins-admin-cluster-resources');
-      expect(clusterResourcesNavExtension.properties.title).toBe('Cluster Resources');
-      expect(clusterResourcesNavExtension.properties.href).toBe('/community-plugins-admin/cluster-resources');
-      expect(clusterResourcesNavExtension.properties.section).toBe('community-plugins-admin');
-      expect(clusterResourcesNavExtension.properties.path).toBe('/community-plugins-admin/cluster-resources/*');
-    });
-
-    it('should define Namespace Summary nav item under community-plugins-admin section', () => {
-      expect(namespaceSummaryNavExtension.type).toBe('app.navigation/href');
-      expect(namespaceSummaryNavExtension.properties.id).toBe('community-plugins-admin-namespace-summary');
-      expect(namespaceSummaryNavExtension.properties.title).toBe('Namespace Summary');
-      expect(namespaceSummaryNavExtension.properties.href).toBe('/community-plugins-admin/namespace-summary');
-      expect(namespaceSummaryNavExtension.properties.section).toBe('community-plugins-admin');
-      expect(namespaceSummaryNavExtension.properties.path).toBe('/community-plugins-admin/namespace-summary/*');
+    it('should define Installed nav item under community-plugins-admin section', () => {
+      expect(installedNavExtension.type).toBe('app.navigation/href');
+      expect(installedNavExtension.properties.id).toBe('community-plugins-admin-installed');
+      expect(installedNavExtension.properties.title).toBe('Installed');
+      expect(installedNavExtension.properties.href).toBe('/community-plugins-admin/installed');
+      expect(installedNavExtension.properties.section).toBe('community-plugins-admin');
+      expect(installedNavExtension.properties.path).toBe('/community-plugins-admin/installed/*');
     });
   });
 
@@ -84,8 +74,8 @@ describe('RHOAI Plugin Extensions', () => {
   });
 
   describe('extensions array', () => {
-    it('should contain all seven extensions', () => {
-      expect(extensions).toHaveLength(7);
+    it('should contain all six extensions', () => {
+      expect(extensions).toHaveLength(6);
     });
 
     it('should include all extensions in the correct order', () => {
@@ -93,9 +83,8 @@ describe('RHOAI Plugin Extensions', () => {
         communityPluginsSectionExtension,
         communityPluginsAdminAreaExtension,
         communityPluginsAdminSectionExtension,
-        userInfoNavExtension,
-        clusterResourcesNavExtension,
-        namespaceSummaryNavExtension,
+        catalogNavExtension,
+        installedNavExtension,
         communityPluginsAdminRouteExtension,
       ]);
     });

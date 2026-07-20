@@ -80,6 +80,23 @@ K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
 
 You should see `BFF listening on port 3000`. The `K8S_API_BASE` env var tells the BFF where to find the Kubernetes API server. Without it, the BFF cannot make any cluster calls and all requests will fail with a 502 error.
 
+> **Tip:** If your cluster uses a self-signed certificate (common in dev/lab environments), add `K8S_TLS_INSECURE=true` to skip TLS verification for both the K8s API client and Helm commands:
+>
+> ```bash
+> K8S_TLS_INSECURE=true K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
+> ```
+>
+> This is not needed in production — the in-cluster service account CA bundle handles TLS automatically.
+>
+> **Tip:** To use a private plugin catalog instead of the default [rh-ai-community-plugins/charter](https://github.com/rh-ai-community-plugins/charter) registry, set `CHARTER_REGISTRY_URL` to the raw URL of your own `plugins.yaml`:
+>
+> ```bash
+> CHARTER_REGISTRY_URL=https://my-git-server.example.com/my-org/my-catalog/raw/main/plugins.yaml \
+>   K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
+> ```
+>
+> In production, this is configurable via the Helm value `bff.charterRegistryUrl`.
+>
 > **Note:** The `proxyService` entry in the `MODULE_FEDERATION_CONFIG` (Step 2) is what tells the dashboard to forward `/community-plugins-admin/api/*` requests to the BFF at `localhost:3000`. If you omit the `proxyService` block, those requests will hit the dashboard's SPA fallback and return HTML instead of JSON.
 
 ### Step 4: Start the plugin dev server
@@ -97,10 +114,10 @@ You should now have **three processes** running:
 | Process | Port | Purpose |
 |---|---|---|
 | Dashboard container | 8080 | Host application, proxies to plugin and BFF |
-| BFF service | 3000 | Plugin backend (namespace summary aggregation) |
+| BFF service | 3000 | Plugin backend (catalog aggregation, lifecycle operations) |
 | Plugin dev server | 9500 | Plugin frontend (webpack dev server with HMR) |
 
-Open the dashboard URL in your browser. You should see the RHOAI Dashboard with your plugin loaded in the sidebar, including the Namespace Summary page under the Community Plugins Admin section.
+Open the dashboard URL in your browser. You should see the RHOAI Dashboard with your plugin loaded in the sidebar, with the Catalog and Installed pages under the Community Plugins Admin section.
 
 ### How it works
 
@@ -234,6 +251,10 @@ K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
 
 You should see `BFF listening on port 3000`. The `K8S_API_BASE` env var tells the BFF where to find the Kubernetes API server (required for local dev since the BFF is not running in-cluster).
 
+> **Tip:** If your cluster uses a self-signed certificate, add `K8S_TLS_INSECURE=true` (see [Step 3 in Method 1](#step-3-start-the-bff-service) for details).
+>
+> **Tip:** To point the BFF at a private plugin catalog, set `CHARTER_REGISTRY_URL` (see [Step 3 in Method 1](#step-3-start-the-bff-service) for details).
+>
 > **Note:** The `proxyService` entry in `env.local` (Step 6) tells the dashboard to forward `/community-plugins-admin/api/*` requests to the BFF. Without it, those requests return HTML instead of JSON.
 
 ### Step 9: Start the plugin dev server
@@ -336,14 +357,14 @@ This project defaults to port **9500**. The port only matters if you run multipl
 - Ensure the plugin dev server is running (not just built)
 - Try a hard refresh (Ctrl+Shift+R) if the module cache is stale
 
-### BFF: "Failed to load namespace summary" with HTML parse error
+### BFF: HTML returned instead of JSON
 
 The frontend receives HTML instead of JSON. This means the request to `/community-plugins-admin/api/*` is not being proxied to the BFF and is hitting the SPA fallback instead.
 
 - Ensure your `MODULE_FEDERATION_CONFIG` includes the `proxyService` block (see the config examples above)
 - Restart the dashboard after changing `MODULE_FEDERATION_CONFIG`
 
-### BFF: "Failed to fetch namespace summary: 502"
+### BFF: 502 errors from API requests
 
 The dashboard is correctly proxying to the BFF, but the BFF is returning an error.
 

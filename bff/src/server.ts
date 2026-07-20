@@ -1,20 +1,7 @@
-import express from 'express';
-import { namespaceSummaryHandler } from './routes/namespaceSummary';
 import { getK8sBaseUrl } from './utils/k8sClient';
+import app from './app';
 
-const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
-
-app.use((req, res, next) => {
-  const start = Date.now();
-  res.on('finish', () => {
-    console.log(`${req.method} ${req.originalUrl} ${res.statusCode} ${Date.now() - start}ms`);
-  });
-  next();
-});
-
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
-app.get('/api/namespace-summary', namespaceSummaryHandler);
 
 app.listen(PORT, () => {
   try {
@@ -28,5 +15,3 @@ app.listen(PORT, () => {
     console.error('  All API requests will fail with 502 until this is set.');
   }
 });
-
-export default app;

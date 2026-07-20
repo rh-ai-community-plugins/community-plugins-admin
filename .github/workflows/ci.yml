@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   pull_request:
-    branches: [main]
+    branches: [main, dev]
 
 jobs:
   test:
@@ -54,3 +54,28 @@ jobs:
 
       - name: Run linter
         run: npm run lint
+
+  lint-chart:
+    runs-on: ubuntu-latest
+    name: Lint Helm chart
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Lint chart
+        run: helm lint chart/
+
+      - name: Template chart
+        run: helm template test-release chart/
+
+      - name: Verify RBAC safety guard
+        run: |
+          if helm template test-release chart/ \
+            --set bff.serviceAccount.create=false \
+            --set bff.rbac.create=true 2>/dev/null; then
+            echo "ERROR: expected helm template to fail but it succeeded"
+            exit 1
+          fi

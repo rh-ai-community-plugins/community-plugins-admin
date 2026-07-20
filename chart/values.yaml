@@ -2,7 +2,7 @@
 # This is a YAML-formatted file.
 
 image:
-  repository: quay.io/OWNER/community-plugins-admin
+  repository: quay.io/rh-ai-community-plugins/community-plugins-admin
   tag: ""
   pullPolicy: IfNotPresent
 
@@ -55,10 +55,14 @@ affinity: {}
 bff:
   enabled: true
   image:
-    repository: quay.io/OWNER/community-plugins-admin-bff
+    repository: quay.io/rh-ai-community-plugins/community-plugins-admin-bff
     tag: ""
     pullPolicy: IfNotPresent
   replicaCount: 1
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
   service:
     type: ClusterIP
     port: 3000
@@ -70,3 +74,17 @@ bff:
     requests:
       cpu: 100m
       memory: 128Mi
+  # RBAC for plugin lifecycle operations (install, upgrade, remove)
+  rbac:
+    create: true
+  # Dashboard deployment coordinates (RHOAI defaults; use "opendatahub" / "odh-dashboard" for ODH)
+  dashboardNamespace: "redhat-ods-applications"
+  dashboardDeployment: "rhods-dashboard"
+  # Charter registry URL (source of available plugins)
+  charterRegistryUrl: "https://raw.githubusercontent.com/rh-ai-community-plugins/charter/dev/plugins.yaml"
+  # Cache TTL settings (milliseconds)
+  cache:
+    charterTtlMs: 300000
+    pluginTtlMs: 300000
+  # Max concurrent plugin.yaml fetches
+  pluginFetchConcurrency: 5

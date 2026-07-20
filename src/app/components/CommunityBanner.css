@@ -8,7 +8,7 @@
 
 .community-plugin-banner {
   background-color: var(--pf-t--color--orange--40);
-  color: #fff;
+  color: var(--pf-t--global--text--color--on-brand--default);
   text-align: center;
   padding: 6px 0;
   font-size: 0.8rem;

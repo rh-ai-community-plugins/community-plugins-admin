@@ -53,8 +53,8 @@ The sections below document the underlying scripts that the Makefile wraps.
 ## Image Details
 
 - **Registry**: `quay.io`
-- **Frontend image**: `quay.io/OWNER/community-plugins-admin`
-- **BFF image**: `quay.io/OWNER/community-plugins-admin-bff`
+- **Frontend image**: `quay.io/rh-ai-community-plugins/community-plugins-admin`
+- **BFF image**: `quay.io/rh-ai-community-plugins/community-plugins-admin-bff`
 
 ## Prerequisites
 
@@ -96,11 +96,11 @@ To build and push images manually without the script:
 
 ```bash
 podman login quay.io
-podman build -t quay.io/OWNER/community-plugins-admin:0.5.0 -f Containerfile .
-podman push quay.io/OWNER/community-plugins-admin:0.5.0
+podman build -t quay.io/rh-ai-community-plugins/community-plugins-admin:0.5.0 -f Containerfile .
+podman push quay.io/rh-ai-community-plugins/community-plugins-admin:0.5.0
 
-podman build -t quay.io/OWNER/community-plugins-admin-bff:0.5.0 -f bff/Containerfile bff/
-podman push quay.io/OWNER/community-plugins-admin-bff:0.5.0
+podman build -t quay.io/rh-ai-community-plugins/community-plugins-admin-bff:0.5.0 -f bff/Containerfile bff/
+podman push quay.io/rh-ai-community-plugins/community-plugins-admin-bff:0.5.0
 ```
 
 Buildah and Docker work the same way — substitute `buildah build` or `docker build`/`docker push`.
@@ -151,7 +151,7 @@ BUILDER=docker ./scripts/scan-image.sh   # Use Docker instead of Podman
 The `chart/` directory contains a Helm chart for deploying both the frontend and BFF to Kubernetes/OpenShift. The chart is published to the same Quay.io registry as an OCI artifact.
 
 - **Chart name**: `community-plugins-admin-chart`
-- **OCI registry**: `oci://quay.io/OWNER/community-plugins-admin-chart`
+- **OCI registry**: `oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart`
 
 The chart version is kept in sync with the project version in `package.json` by the `scripts/sync-chart-version.js` script, which runs automatically on `npm version`.
 
@@ -181,7 +181,7 @@ make chart-push
 ### Install from OCI Registry
 
 ```bash
-helm install community-plugins-admin oci://quay.io/OWNER/community-plugins-admin-chart \
+helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
   --version 0.1.0 \
   --namespace community-plugins-admin \
   --create-namespace

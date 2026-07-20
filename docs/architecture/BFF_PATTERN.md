@@ -10,10 +10,11 @@ The BFF (Backend For Frontend) pattern gives a plugin its own backend service. I
 
 ### When to Use a BFF
 
-- **Server-side aggregation** -- Combine multiple API calls into a single response (this plugin's Namespace Summary page demonstrates this)
+- **Server-side aggregation** -- Combine multiple API calls into a single response (e.g., fetching and merging plugin metadata from multiple repos)
 - **External service integration** -- Call third-party APIs using credentials stored server-side (API keys never reach the browser)
 - **Complex business logic** -- Processing that would be too expensive or impractical in the browser
 - **Data transformation** -- Heavy filtering, sorting, or enrichment before sending data to the frontend
+- **Lifecycle operations** -- Execute Helm CLI commands and manage K8s resources server-side on behalf of the user
 
 ### When NOT to Use a BFF
 
@@ -30,32 +31,25 @@ The BFF (Backend For Frontend) pattern gives a plugin its own backend service. I
 ```text
 Browser                    Dashboard Backend              Plugin BFF              K8s API
   |                              |                            |                     |
-  |-- fetch('/community-plugins-admin/api/namespace-summary') ----------->|                     |
+  |-- fetch('/community-plugins-admin/api/catalog') -------->|                     |
   |                              |                            |                     |
   |                    [matches proxyService path]             |                     |
   |                    [authorize: true]                       |                     |
   |                              |                            |                     |
-  |                              |-- GET /api/namespace-summary                     |
+  |                              |-- GET /api/catalog         |                     |
   |                              |   Authorization: Bearer <user-token>             |
   |                              |--------------------------->|                     |
   |                              |                            |                     |
-  |                              |                            |-- GET /apis/...     |
-  |                              |                            |   Bearer <user-token>|
-  |                              |                            |------------------->|
-  |                              |                            |<-- projects list ---|
+  |                              |                            |-- fetch GitHub      |
+  |                              |                            |   (charter registry)|
   |                              |                            |                     |
-  |                              |                            |-- GET /api/v1/...   |
-  |                              |                            |   Bearer <user-token>|
-  |                              |                            |------------------->|
-  |                              |                            |<-- pods list -------|
-  |                              |                            |                     |
-  |                              |<-- aggregated response ----|                     |
+  |                              |<-- [{ name, ... }] --------|                     |
   |<-- JSON response ------------|                            |                     |
 ```
 
 Key points:
 
-1. The frontend calls a path like `/community-plugins-admin/api/namespace-summary` at the same origin
+1. The frontend calls a path like `/community-plugins-admin/api/catalog` at the same origin
 2. The dashboard backend matches this against `proxyService` entries in the federation ConfigMap
 3. When `authorize: true`, the dashboard converts the user's `x-forwarded-access-token` into an `Authorization: Bearer <token>` header
 4. The BFF receives the user's actual OpenShift token and uses it for K8s API calls -- all RBAC permissions are the user's own
@@ -98,48 +92,188 @@ The dashboard discovers BFF services via the `proxyService` field in the federat
 bff/
   package.json              # Express + TypeScript project
   tsconfig.json
-  Containerfile             # UBI9 Node 22, runs on port 3000
+  Containerfile             # UBI9 Node 22 + Helm binary, runs on port 3000
   src/
-    server.ts               # Express app with health check + namespace summary route
-    types.ts                # Shared types (PodCounts, NamespaceInfo)
+    app.ts                  # Express app (middleware, route mounting, health endpoint)
+    server.ts               # HTTP server entry (listen + K8s config logging)
     routes/
-      namespaceSummary.ts   # GET /api/namespace-summary handler
+      catalog.ts            # GET /api/catalog, GET /api/catalog/:name
+      lifecycle.ts          # GET /api/plugins, POST install/upgrade/enable/disable, DELETE remove
+      dashboard.ts          # GET /api/dashboard/status — dashboard rollout state
+    services/
+      charterClient.ts      # Fetches plugins.yaml from the charter registry (GitHub)
+      pluginMetadataClient.ts # Fetches plugin.yaml from individual plugin repos
+      dashboardConfigService.ts # Reads/modifies MODULE_FEDERATION_CONFIG on rhods-dashboard
+      helmService.ts        # Executes Helm CLI operations (install/upgrade/uninstall/list)
+      lifecycleService.ts   # Orchestrates lifecycle operations (chart resolve → Helm → config)
+      k8sApiClient.ts       # Low-level K8s API HTTP client with CA cert caching
+    types/
+      catalog.ts            # RegistryPlugin, PluginMetadata, CatalogPlugin types
+      lifecycle.ts          # InstallRequest, UpgradeRequest types
+      js-yaml.d.ts          # Module declaration for js-yaml
     utils/
-      k8sClient.ts          # Authenticated K8s API caller
+      httpClient.ts         # HTTP fetch with redirect following
+      k8sClient.ts          # K8s API base URL resolution
   __tests__/
-    namespaceSummary.test.ts
+    catalogRoutes.test.ts
+    lifecycleRoute.test.ts
+    charterClient.test.ts
+    pluginMetadataClient.test.ts
+    httpClient.test.ts
+    helmService.test.ts
+    lifecycleService.test.ts
+    dashboardConfigService.test.ts
     k8sClient.test.ts
+    k8sApiClient.test.ts
 ```
 
-### Endpoint: `GET /api/namespace-summary`
+### Endpoints
 
-1. Extracts the Bearer token from the `Authorization` header
-2. Lists the user's projects via the OpenShift projects API (RBAC-scoped -- returns only projects the user can access)
-3. For each project, fetches pods and counts them by phase (Running, Pending, Succeeded, Failed, Unknown)
-4. Uses `Promise.allSettled` so one namespace failure doesn't break the entire response
-5. Returns an aggregated summary
+#### `GET /api/health`
 
-### K8s Client
+Returns `{ status: "ok" }`. Used by liveness probes and to verify the BFF is reachable through the dashboard proxy.
 
-The `k8sClient.ts` utility makes authenticated requests to the K8s API server:
+#### `GET /api/catalog`
 
-- **In-cluster**: Uses `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT` env vars, reads the CA cert from the service account mount
-- **Local dev**: Uses the `K8S_API_BASE` env var to point at the cluster API
+Returns a merged list of all community plugins. Each entry combines the charter registry data with resolved metadata from the plugin's own `plugin.yaml`. Supports `?refresh=true` to force cache invalidation.
 
-The BFF always uses the user's forwarded token, never a service account token. This ensures all actions respect the user's RBAC permissions.
+Response fields include: `name`, `repo`, `status`, `maintenance`, `displayName`, `description`, `version`, `rhoaiCompatibility`, `deploymentModel`, `install`, `rbac`, `remote`, `support`, and more.
+
+#### `GET /api/catalog/:name`
+
+Returns full metadata for a single plugin by name.
+
+#### `GET /api/plugins`
+
+Lists all Helm-deployed plugin releases across namespaces. Returns `{ releases: [...] }` with each release's name, namespace, chart, and app version.
+
+#### `POST /api/plugins/:name/install`
+
+Installs a plugin via Helm. Request body:
+
+- `namespace` (optional) — target namespace, defaults to plugin name
+- `values` (optional) — Helm values to override
+
+Steps: resolve chart from registry metadata → `helm install` → add entry to `MODULE_FEDERATION_CONFIG`.
+
+#### `POST /api/plugins/:name/upgrade`
+
+Upgrades a plugin to the latest chart version. Discovers the existing namespace from Helm releases.
+
+#### `DELETE /api/plugins/:name`
+
+Removes a plugin. Query param `?deleteNamespace=true` also deletes the namespace. Steps: remove from `MODULE_FEDERATION_CONFIG` → `helm uninstall` → optionally delete namespace.
+
+#### `POST /api/plugins/:name/enable`
+
+Adds the plugin's Module Federation entry to `MODULE_FEDERATION_CONFIG`, making it visible in the dashboard without redeploying.
+
+#### `POST /api/plugins/:name/disable`
+
+Removes the plugin's entry from `MODULE_FEDERATION_CONFIG`. The plugin stays deployed but is hidden from the dashboard.
+
+#### `GET /api/config`
+
+Returns the BFF's dashboard configuration: namespace and deployment name. Used by the frontend to know which deployment to monitor.
+
+#### `GET /api/dashboard/status`
+
+Reads the `rhods-dashboard` Deployment and derives the rollout state. Returns:
+
+- `rolloutStatus` — `progressing`, `complete`, or `error`
+- `replicas`, `readyReplicas`, `updatedReplicas`, `availableReplicas` — pod counts
+- `message` — human-readable status description (e.g., "Dashboard pods are being updated (2/3)")
+
+The frontend polls this endpoint after lifecycle operations to track the dashboard restart triggered by `MODULE_FEDERATION_CONFIG` changes.
+
+### Services
+
+#### Charter Client (`charterClient.ts`)
+
+Fetches and parses `plugins.yaml` from the charter registry on GitHub. Features:
+
+- In-memory cache with configurable TTL (`CHARTER_CACHE_TTL_MS`, default 5 min)
+- Stale-while-revalidate: serves cached data on fetch failure
+- Force refresh support
+
+#### Plugin Metadata Client (`pluginMetadataClient.ts`)
+
+Fetches `plugin.yaml` from each plugin's GitHub repo. Features:
+
+- Per-plugin cache with TTL (`PLUGIN_CACHE_TTL_MS`)
+- Concurrent fetch limit (`PLUGIN_FETCH_CONCURRENCY`, default 5)
+- Graceful handling of missing/malformed metadata
+
+#### Dashboard Config Service (`dashboardConfigService.ts`)
+
+Reads and modifies `MODULE_FEDERATION_CONFIG` on the `rhods-dashboard` deployment in `redhat-ods-applications`. Features:
+
+- JSON Patch operations for adding/removing plugin entries
+- Optimistic concurrency control with 409 conflict retry
+- Scope conversion between camelCase (federation config) and kebab-case (internal)
+
+#### Helm Service (`helmService.ts`)
+
+Executes Helm CLI operations. Features:
+
+- Temporary kubeconfig files (no tokens in CLI arguments)
+- Helm values validation
+- Namespace discovery from existing releases
+- Install, upgrade, uninstall, and list operations
+
+#### Lifecycle Service (`lifecycleService.ts`)
+
+Orchestrates plugin lifecycle by coordinating:
+
+1. Chart resolution from registry + plugin metadata
+2. Helm execution (install/upgrade/uninstall)
+3. Dashboard config updates (add/remove federation entries)
+
+Error messages are sanitized to redact tokens and sensitive data.
+
+#### K8s API Client (`k8sApiClient.ts`)
+
+Low-level HTTP client for K8s API calls. Features:
+
+- CA certificate caching (positive and negative)
+- TLS insecure mode via `K8S_TLS_INSECURE` env var
+- Request timeout and response size limits
+
+### K8s Client (`k8sClient.ts`)
+
+Resolves the K8s API base URL:
+
+- **In-cluster**: Uses `KUBERNETES_SERVICE_HOST` and `KUBERNETES_SERVICE_PORT` env vars
+- **Local dev**: Uses the `K8S_API_BASE` env var
+
+The BFF always uses the user's forwarded token, never a service account token. This ensures all actions — including lifecycle operations like Helm install/upgrade/uninstall — respect the user's RBAC permissions.
 
 ---
 
 ## Deployment
 
-The BFF runs as a separate Deployment and Service in the Helm chart:
+The BFF runs as a separate Deployment and Service in the Helm chart, with RBAC resources for lifecycle operations:
 
-- **Deployment**: `community-plugins-admin-bff` -- Node.js container on port 3000
+- **Deployment**: `community-plugins-admin-bff` -- Node.js container on port 3000 with Helm binary
 - **Service**: `community-plugins-admin-bff` -- ClusterIP service exposing port 3000
+- **ServiceAccount**: `community-plugins-admin-bff` -- Identity for BFF pod RBAC
+- **ClusterRole**: `community-plugins-admin-bff` -- Permissions for lifecycle operations
+- **ClusterRoleBinding**: Binds the ClusterRole to the ServiceAccount
 
-Both are gated by `.Values.bff.enabled` (default: `true`).
+All BFF resources are gated by `.Values.bff.enabled` (default: `true`).
 
 The BFF Service name in `values.yaml` must match the `proxyService.service.name` in the dashboard's federation ConfigMap.
+
+### RBAC Permissions
+
+The BFF ClusterRole grants permissions required for plugin lifecycle management:
+
+| Resource | Verbs | Purpose |
+|---|---|---|
+| Deployments (apps) | get, list, update, patch | Read/modify `MODULE_FEDERATION_CONFIG` on `rhods-dashboard` |
+| Namespaces | get, list, create, update, patch, delete | Create/delete plugin namespaces |
+| Deployments, Services, ConfigMaps, ServiceAccounts, Secrets | get, list, create, update, patch, delete | Manage Helm-deployed plugin resources |
+| ClusterRoles, ClusterRoleBindings | get, list, create, update, patch, delete | Manage RBAC for deployed plugins |
 
 ---
 
@@ -152,7 +286,7 @@ The BFF runs as a separate Node.js process alongside the plugin dev server and t
 | Process | Port | What it does |
 |---|---|---|
 | Dashboard (container or source) | 8443 | Host app; proxies frontend and BFF requests |
-| BFF service | 3000 | Plugin backend; makes K8s API calls server-side |
+| BFF service | 3000 | Plugin backend; aggregates metadata, executes lifecycle operations |
 | Plugin dev server | 9500 | Plugin frontend; serves webpack bundles with HMR |
 
 ### Starting the BFF

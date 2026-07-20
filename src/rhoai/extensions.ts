@@ -32,36 +32,25 @@ export const communityPluginsAdminSectionExtension = {
   },
 };
 
-export const userInfoNavExtension = {
+export const catalogNavExtension = {
   type: 'app.navigation/href' as const,
   properties: {
-    id: 'community-plugins-admin-user-info', // [PLUGIN-SPECIFIC] unique nav item ID
-    title: 'User Info',
-    href: '/community-plugins-admin/user-info', // [PLUGIN-SPECIFIC] must match route prefix
+    id: 'community-plugins-admin-catalog', // [PLUGIN-SPECIFIC] unique nav item ID
+    title: 'Catalog',
+    href: '/community-plugins-admin/catalog', // [PLUGIN-SPECIFIC] must match route prefix
     section: 'community-plugins-admin', // [PLUGIN-SPECIFIC] references this plugin's section ID
-    path: '/community-plugins-admin/user-info/*', // [PLUGIN-SPECIFIC] route-matching pattern
+    path: '/community-plugins-admin/catalog/*', // [PLUGIN-SPECIFIC] route-matching pattern
   },
 };
 
-export const clusterResourcesNavExtension = {
+export const installedNavExtension = {
   type: 'app.navigation/href' as const,
   properties: {
-    id: 'community-plugins-admin-cluster-resources', // [PLUGIN-SPECIFIC] unique nav item ID
-    title: 'Cluster Resources',
-    href: '/community-plugins-admin/cluster-resources', // [PLUGIN-SPECIFIC] must match route prefix
+    id: 'community-plugins-admin-installed', // [PLUGIN-SPECIFIC] unique nav item ID
+    title: 'Installed',
+    href: '/community-plugins-admin/installed', // [PLUGIN-SPECIFIC] must match route prefix
     section: 'community-plugins-admin', // [PLUGIN-SPECIFIC] references this plugin's section ID
-    path: '/community-plugins-admin/cluster-resources/*', // [PLUGIN-SPECIFIC] route-matching pattern
-  },
-};
-
-export const namespaceSummaryNavExtension = {
-  type: 'app.navigation/href' as const,
-  properties: {
-    id: 'community-plugins-admin-namespace-summary', // [PLUGIN-SPECIFIC] unique nav item ID
-    title: 'Namespace Summary',
-    href: '/community-plugins-admin/namespace-summary', // [PLUGIN-SPECIFIC] must match route prefix
-    section: 'community-plugins-admin', // [PLUGIN-SPECIFIC] references this plugin's section ID
-    path: '/community-plugins-admin/namespace-summary/*', // [PLUGIN-SPECIFIC] route-matching pattern
+    path: '/community-plugins-admin/installed/*', // [PLUGIN-SPECIFIC] route-matching pattern
   },
 };
 
@@ -77,9 +66,8 @@ export const extensions = [
   communityPluginsSectionExtension,
   communityPluginsAdminAreaExtension,
   communityPluginsAdminSectionExtension,
-  userInfoNavExtension,
-  clusterResourcesNavExtension,
-  namespaceSummaryNavExtension,
+  catalogNavExtension,
+  installedNavExtension,
   communityPluginsAdminRouteExtension,
 ];
 
