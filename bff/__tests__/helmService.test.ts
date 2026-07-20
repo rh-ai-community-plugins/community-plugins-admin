@@ -90,6 +90,55 @@ describe('helmInstall', () => {
     );
   });
 
+  it('includes certificate-authority in kubeconfig when in-cluster CA exists', async () => {
+    mockFs.existsSync.mockReturnValue(true);
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'token');
+
+    const kubeconfig = mockFs.writeFileSync.mock.calls.find(
+      (call) => call[0] === FAKE_KUBECONFIG,
+    )?.[1] as string;
+    expect(kubeconfig).toContain('certificate-authority: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt');
+    expect(kubeconfig).not.toContain('insecure-skip-tls-verify');
+  });
+
+  it('omits certificate-authority when in-cluster CA does not exist', async () => {
+    mockFs.existsSync.mockReturnValue(false);
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'token');
+
+    const kubeconfig = mockFs.writeFileSync.mock.calls.find(
+      (call) => call[0] === FAKE_KUBECONFIG,
+    )?.[1] as string;
+    expect(kubeconfig).not.toContain('certificate-authority');
+    expect(kubeconfig).not.toContain('insecure-skip-tls-verify');
+  });
+
+  it('uses insecure-skip-tls-verify when K8S_TLS_INSECURE is set', async () => {
+    process.env.K8S_TLS_INSECURE = 'true';
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'token');
+
+    const kubeconfig = mockFs.writeFileSync.mock.calls.find(
+      (call) => call[0] === FAKE_KUBECONFIG,
+    )?.[1] as string;
+    expect(kubeconfig).toContain('insecure-skip-tls-verify: true');
+    expect(kubeconfig).not.toContain('certificate-authority');
+    delete process.env.K8S_TLS_INSECURE;
+  });
+
   it('sets HELM env vars to per-invocation subdirs of the temp dir', async () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
       cb(null, '{}', '');

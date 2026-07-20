@@ -26,14 +26,25 @@ function sanitizeHelmError(message: string): string {
   return message.replace(/--kubeconfig\s+\S+/g, '--kubeconfig [REDACTED]');
 }
 
+const SA_CA_PATH = '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt';
+
 function buildKubeconfig(apiServer: string, token: string): string {
+  const clusterLines = [
+    `    server: ${apiServer}`,
+  ];
+
+  if (process.env.K8S_TLS_INSECURE === 'true') {
+    clusterLines.push('    insecure-skip-tls-verify: true');
+  } else if (fs.existsSync(SA_CA_PATH)) {
+    clusterLines.push(`    certificate-authority: ${SA_CA_PATH}`);
+  }
+
   return [
     'apiVersion: v1',
     'kind: Config',
     'clusters:',
     '- cluster:',
-    `    server: ${apiServer}`,
-    `    insecure-skip-tls-verify: ${process.env.K8S_TLS_INSECURE === 'true'}`,
+    ...clusterLines,
     '  name: cluster',
     'contexts:',
     '- context:',
@@ -78,7 +89,6 @@ async function runHelm(args: string[], token: string): Promise<HelmResult> {
       ...args,
       '--kube-apiserver', baseUrl,
       '--kubeconfig', kubeconfigPath,
-      `--kube-insecure-skip-tls-verify=${process.env.K8S_TLS_INSECURE === 'true'}`,
     ];
 
     return await new Promise<HelmResult>((resolve, reject) => {
