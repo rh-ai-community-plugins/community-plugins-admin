@@ -12,6 +12,7 @@ const mockUsePluginDetail = usePluginDetail as jest.MockedFunction<typeof usePlu
 const mockLifecycle: PluginLifecycle = {
   loading: false,
   operation: null,
+  steps: [],
   result: null,
   error: null,
   install: jest.fn().mockResolvedValue({ success: true, message: 'ok', steps: [] }),
@@ -373,10 +374,10 @@ describe('PluginDetailModal', () => {
       expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
     });
 
-    it('shows Upgrade, Disable, Remove buttons for admin when plugin is installed', () => {
+    it('shows Upgrade, Disable, Remove buttons for admin when plugin is installed and upgrade available', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} installedVersion="1.0.0" lifecycle={mockLifecycle} onClose={jest.fn()} />,
       );
       expect(screen.queryByRole('button', { name: 'Install' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Upgrade' })).toBeInTheDocument();
@@ -384,10 +385,20 @@ describe('PluginDetailModal', () => {
       expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
     });
 
+    it('hides Upgrade button when installed version matches catalog version', () => {
+      mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} installedVersion="2.1.0" lifecycle={mockLifecycle} onClose={jest.fn()} />,
+      );
+      expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Disable' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
+    });
+
     it('action buttons are enabled and clickable for admin', () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} installedVersion="1.0.0" lifecycle={mockLifecycle} onClose={jest.fn()} />,
       );
       expect(screen.getByRole('button', { name: 'Upgrade' })).not.toBeDisabled();
       expect(screen.getByRole('button', { name: 'Disable' })).not.toBeDisabled();
@@ -429,7 +440,7 @@ describe('PluginDetailModal', () => {
     it('should call lifecycle.upgrade when Upgrade button is clicked', async () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, true));
       render(
-        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+        <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} installedVersion="1.0.0" lifecycle={mockLifecycle} onClose={jest.fn()} />,
       );
       await userEvent.click(screen.getByRole('button', { name: 'Upgrade' }));
       expect(mockLifecycle.upgrade).toHaveBeenCalledWith('test-plugin');
@@ -579,6 +590,7 @@ describe('PluginDetailModal', () => {
           installedNames={new Set(['test-plugin'])}
           installedLoading={false}
           helmInstalledNames={helmInstalledNames}
+          installedVersion="1.0.0"
           lifecycle={mockLifecycle}
           onClose={jest.fn()}
         />,

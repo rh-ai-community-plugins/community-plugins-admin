@@ -117,10 +117,10 @@ const InstalledPage: React.FC = () => {
       },
     ];
 
-    if (
-      plugin.catalogPlugin?.version &&
-      plugin.catalogPlugin.version !== '—'
-    ) {
+    const hasUpgrade = plugin.installedVersion
+      && plugin.catalogPlugin?.version
+      && plugin.installedVersion !== plugin.catalogPlugin.version;
+    if (hasUpgrade) {
       actions.push({
         title: 'Upgrade',
         onClick: () => handleUpgrade(plugin.name),
@@ -309,6 +309,7 @@ const InstalledPage: React.FC = () => {
         isAdmin={isAdmin}
         installedNames={installedNames}
         installedLoading={loading}
+        installedVersion={plugins.find((p) => p.name === selectedPlugin)?.installedVersion}
         lifecycle={lifecycle}
         onClose={() => setSelectedPlugin(null)}
         onLifecycleComplete={refetch}
@@ -323,7 +324,7 @@ const InstalledPage: React.FC = () => {
       <LifecycleProgressModal
         isOpen={showProgress}
         operation={lifecycle.operation}
-        steps={lifecycle.result?.steps ?? []}
+        steps={lifecycle.loading ? lifecycle.steps : (lifecycle.result?.steps ?? [])}
         success={lifecycle.loading ? null : lifecycle.result?.success ?? null}
         message={lifecycle.result?.message ?? null}
         onClose={handleProgressClose}

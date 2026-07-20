@@ -80,6 +80,23 @@ K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
 
 You should see `BFF listening on port 3000`. The `K8S_API_BASE` env var tells the BFF where to find the Kubernetes API server. Without it, the BFF cannot make any cluster calls and all requests will fail with a 502 error.
 
+> **Tip:** If your cluster uses a self-signed certificate (common in dev/lab environments), add `K8S_TLS_INSECURE=true` to skip TLS verification for both the K8s API client and Helm commands:
+>
+> ```bash
+> K8S_TLS_INSECURE=true K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
+> ```
+>
+> This is not needed in production — the in-cluster service account CA bundle handles TLS automatically.
+>
+> **Tip:** To use a private plugin catalog instead of the default [rh-ai-community-plugins/charter](https://github.com/rh-ai-community-plugins/charter) registry, set `CHARTER_REGISTRY_URL` to the raw URL of your own `plugins.yaml`:
+>
+> ```bash
+> CHARTER_REGISTRY_URL=https://my-git-server.example.com/my-org/my-catalog/raw/main/plugins.yaml \
+>   K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
+> ```
+>
+> In production, this is configurable via the Helm value `bff.charterRegistryUrl`.
+>
 > **Note:** The `proxyService` entry in the `MODULE_FEDERATION_CONFIG` (Step 2) is what tells the dashboard to forward `/community-plugins-admin/api/*` requests to the BFF at `localhost:3000`. If you omit the `proxyService` block, those requests will hit the dashboard's SPA fallback and return HTML instead of JSON.
 
 ### Step 4: Start the plugin dev server
@@ -234,6 +251,10 @@ K8S_API_BASE=$(oc whoami --show-server) npm run start:dev
 
 You should see `BFF listening on port 3000`. The `K8S_API_BASE` env var tells the BFF where to find the Kubernetes API server (required for local dev since the BFF is not running in-cluster).
 
+> **Tip:** If your cluster uses a self-signed certificate, add `K8S_TLS_INSECURE=true` (see [Step 3 in Method 1](#step-3-start-the-bff-service) for details).
+>
+> **Tip:** To point the BFF at a private plugin catalog, set `CHARTER_REGISTRY_URL` (see [Step 3 in Method 1](#step-3-start-the-bff-service) for details).
+>
 > **Note:** The `proxyService` entry in `env.local` (Step 6) tells the dashboard to forward `/community-plugins-admin/api/*` requests to the BFF. Without it, those requests return HTML instead of JSON.
 
 ### Step 9: Start the plugin dev server

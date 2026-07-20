@@ -1,20 +1,8 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useInstalledPluginNames, scopeToKebab } from '~/app/hooks/useInstalledPluginNames';
+import { useInstalledPluginNames, scopeToKebab, extractServiceInfo } from '~/app/hooks/useInstalledPluginNames';
 import { useCatalog } from '~/app/hooks/useCatalog';
+import { useHelmReleasedPlugins } from '~/app/hooks/useHelmReleasedPlugins';
 import { InstalledPlugin, ModuleFederationEntry, PluginHealthStatus } from '~/app/types/installed';
-
-export function parseRemoteEntryUrl(remoteEntry: string): { namespace: string; service: string } | null {
-  try {
-    const url = new URL(remoteEntry);
-    const hostParts = url.hostname.split('.');
-    if (hostParts.length >= 5 && hostParts.slice(-3).join('.') === 'svc.cluster.local') {
-      return { service: hostParts[0], namespace: hostParts[1] };
-    }
-  } catch {
-    // not a valid URL
-  }
-  return null;
-}
 
 function deriveHealthStatus(deployment: {
   status?: {
@@ -54,7 +42,7 @@ async function fetchDeploymentHealth(
       if (res.status === 404) {
         console.warn(
           `Deployment "${service}" not found in namespace "${namespace}". ` +
-          `Health check assumes the Deployment name matches the Service hostname from remoteEntry.`,
+          `Health check assumes the Deployment name matches the Service name.`,
         );
       }
       return { healthStatus: 'unknown' };
@@ -82,13 +70,19 @@ export function useInstalledPlugins() {
     refetch: catalogRefetch,
   } = useCatalog();
 
+  const {
+    helmVersionMap,
+    loading: helmLoading,
+    refetch: helmRefetch,
+  } = useHelmReleasedPlugins();
+
   const [healthMap, setHealthMap] = useState<
     Map<string, { healthStatus: PluginHealthStatus; availableReplicas?: number; desiredReplicas?: number }>
   >(new Map());
   const [healthLoading, setHealthLoading] = useState(false);
 
   const entriesRef = useRef<ModuleFederationEntry[]>([]);
-  const entriesKey = useMemo(() => entries.map((e) => e.scope).join(','), [entries]);
+  const entriesKey = useMemo(() => entries.map((e) => e.name).join(','), [entries]);
   entriesRef.current = entries;
 
   useEffect(() => {
@@ -103,12 +97,12 @@ export function useInstalledPlugins() {
     setHealthLoading(true);
 
     const checks = currentEntries.map(async (entry) => {
-      const name = scopeToKebab(entry.scope);
-      const parsed = parseRemoteEntryUrl(entry.remoteEntry);
-      if (!parsed) {
+      const name = scopeToKebab(entry.name);
+      const svcInfo = extractServiceInfo(entry);
+      if (!svcInfo) {
         return { name, healthStatus: 'unknown' as PluginHealthStatus };
       }
-      const result = await fetchDeploymentHealth(parsed.namespace, parsed.service, controller.signal);
+      const result = await fetchDeploymentHealth(svcInfo.namespace, svcInfo.service, controller.signal);
       return { name, ...result };
     });
 
@@ -143,29 +137,29 @@ export function useInstalledPlugins() {
     if (namesLoading) return [];
 
     return entries.map((entry) => {
-      const name = scopeToKebab(entry.scope);
+      const name = scopeToKebab(entry.name);
       const health = healthMap.get(name);
       return {
         name,
-        scope: entry.scope,
-        module: entry.module,
-        remoteEntry: entry.remoteEntry,
+        mfName: entry.name,
         enabled: true,
         healthStatus: health?.healthStatus ?? 'unknown',
         availableReplicas: health?.availableReplicas,
         desiredReplicas: health?.desiredReplicas,
+        installedVersion: helmVersionMap.get(name),
         catalogPlugin: catalogByName.get(name),
       };
     });
-  }, [namesLoading, entries, catalogByName, healthMap]);
+  }, [namesLoading, entries, catalogByName, healthMap, helmVersionMap]);
 
-  const loading = namesLoading || catalogLoading;
+  const loading = namesLoading || catalogLoading || helmLoading;
   const error = namesError ?? null;
 
   const refetch = useCallback(() => {
     namesRefetch();
     catalogRefetch();
-  }, [namesRefetch, catalogRefetch]);
+    helmRefetch();
+  }, [namesRefetch, catalogRefetch, helmRefetch]);
 
   return {
     plugins: installedPlugins,
@@ -174,6 +168,7 @@ export function useInstalledPlugins() {
     isRefetching: catalogRefetching,
     error,
     catalogError,
+    helmVersionMap,
     refetch,
   };
 }

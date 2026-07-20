@@ -5,7 +5,7 @@ import * as path from 'path';
 import { getK8sBaseUrl } from '../utils/k8sClient';
 
 const HELM_TIMEOUT_MS = 120_000;
-const HELM_BIN = '/usr/local/bin/helm';
+const HELM_BIN = process.env.HELM_BIN || 'helm';
 
 export interface HelmRelease {
   name: string;
@@ -33,7 +33,7 @@ function buildKubeconfig(apiServer: string, token: string): string {
     'clusters:',
     '- cluster:',
     `    server: ${apiServer}`,
-    '    insecure-skip-tls-verify: false',
+    `    insecure-skip-tls-verify: ${process.env.K8S_TLS_INSECURE === 'true'}`,
     '  name: cluster',
     'contexts:',
     '- context:',
@@ -78,7 +78,7 @@ async function runHelm(args: string[], token: string): Promise<HelmResult> {
       ...args,
       '--kube-apiserver', baseUrl,
       '--kubeconfig', kubeconfigPath,
-      '--kube-insecure-skip-tls-verify=false',
+      `--kube-insecure-skip-tls-verify=${process.env.K8S_TLS_INSECURE === 'true'}`,
     ];
 
     return await new Promise<HelmResult>((resolve, reject) => {

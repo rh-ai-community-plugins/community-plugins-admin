@@ -7,7 +7,7 @@ import {
 import { k8sRequest } from './k8sApiClient';
 import { getPluginMetadata } from './pluginMetadataClient';
 import { getRegistryPlugins } from './charterClient';
-import { LifecycleStep, LifecycleResponse, ModuleFederationEntry } from '../types/lifecycle';
+import { LifecycleStep, LifecycleResponse, LifecycleProgressCallback, ModuleFederationEntry } from '../types/lifecycle';
 
 export function sanitizeErrorMessage(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
@@ -37,9 +37,9 @@ function markFailed(step: LifecycleStep, error: string): void {
 async function resolvePluginChart(pluginName: string): Promise<{
   chart: string;
   repo: string;
-  remoteEntry: string;
-  scope: string;
-  module: string;
+  mfName: string;
+  hasBff: boolean;
+  routePath: string;
 }> {
   const registry = await getRegistryPlugins();
   const regEntry = registry.find((p) => p.name === pluginName);
@@ -61,15 +61,12 @@ async function resolvePluginChart(pluginName: string): Promise<{
     throw new Error(`Plugin "${pluginName}" has no Helm chart configured`);
   }
 
-  const scope = metadata.remote?.spec?.scope ?? kebabToCamelScope(pluginName);
-  const module = './extensions';
+  const mfName = metadata.remote?.spec?.name ?? metadata.remote?.spec?.scope ?? kebabToCamelScope(pluginName);
+  const hasBff = !!metadata.bff_image;
+  const routeSpec = metadata.remote?.spec?.paths?.find((p) => p.type === 'route');
+  const routePath = routeSpec?.path ?? `/${pluginName}`;
 
-  const remoteEntry = metadata.remote?.spec?.remoteEntry
-    ?? (metadata.image?.repository
-      ? `http://${pluginName}.${pluginName}.svc.cluster.local:8080/plugin-entry.js`
-      : '');
-
-  return { chart, repo: regEntry.repo, remoteEntry, scope, module };
+  return { chart, repo: regEntry.repo, mfName, hasBff, routePath };
 }
 
 export async function installPlugin(
@@ -77,40 +74,78 @@ export async function installPlugin(
   token: string,
   namespace?: string,
   values?: Record<string, unknown>,
+  onProgress?: LifecycleProgressCallback,
 ): Promise<LifecycleResponse> {
   const steps: LifecycleStep[] = [
     createStep('resolve', 'Resolve plugin metadata'),
     createStep('helm-install', 'Install Helm chart'),
     createStep('update-config', 'Register plugin in dashboard'),
   ];
+  onProgress?.(steps);
 
   try {
     markRunning(steps[0]);
+    onProgress?.(steps);
     const pluginInfo = await resolvePluginChart(pluginName);
     markCompleted(steps[0]);
+    onProgress?.(steps);
 
     const ns = namespace ?? pluginName;
     const releaseName = pluginName;
 
     markRunning(steps[1]);
+    onProgress?.(steps);
     await helmInstall(releaseName, pluginInfo.chart, ns, token, values);
     markCompleted(steps[1]);
+    onProgress?.(steps);
 
     markRunning(steps[2]);
+    onProgress?.(steps);
     const mfEntry: ModuleFederationEntry = {
-      scope: pluginInfo.scope,
-      module: pluginInfo.module,
-      remoteEntry: pluginInfo.remoteEntry || `http://${pluginName}.${ns}.svc.cluster.local:8080/plugin-entry.js`,
+      name: pluginInfo.mfName,
+      backend: {
+        remoteEntry: '/remoteEntry.js',
+        tls: false,
+        service: { name: pluginName, namespace: ns, port: 8080 },
+      },
+      ...(pluginInfo.hasBff ? {
+        proxyService: [{
+          path: `${pluginInfo.routePath}/api`,
+          pathRewrite: '/api',
+          authorize: true,
+          tls: false,
+          service: { name: `${pluginName}-bff`, namespace: ns, port: 3000 },
+        }],
+      } : {}),
     };
     await addPluginToConfig(token, mfEntry);
     markCompleted(steps[2]);
+    onProgress?.(steps);
 
     return { success: true, message: `Plugin "${pluginName}" installed successfully`, steps };
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
       markFailed(failedStep, sanitizeErrorMessage(err));
+      onProgress?.(steps);
     }
+
+    const helmStep = steps.find((s) => s.id === 'helm-install');
+    if (helmStep && (helmStep.status === 'completed' || helmStep.status === 'failed')) {
+      const ns = namespace ?? pluginName;
+      const cleanupStep = createStep('cleanup', 'Rolling back Helm release');
+      steps.push(cleanupStep);
+      markRunning(cleanupStep);
+      onProgress?.(steps);
+      try {
+        await helmUninstall(pluginName, ns, token);
+        markCompleted(cleanupStep);
+      } catch (cleanupErr) {
+        markFailed(cleanupStep, sanitizeErrorMessage(cleanupErr));
+      }
+      onProgress?.(steps);
+    }
+
     return {
       success: false,
       message: `Failed to install plugin "${pluginName}": ${sanitizeErrorMessage(err)}`,
@@ -124,28 +159,35 @@ export async function upgradePlugin(
   token: string,
   namespace?: string,
   values?: Record<string, unknown>,
+  onProgress?: LifecycleProgressCallback,
 ): Promise<LifecycleResponse> {
   const steps: LifecycleStep[] = [
     createStep('resolve', 'Resolve plugin metadata'),
     createStep('helm-upgrade', 'Upgrade Helm release'),
   ];
+  onProgress?.(steps);
 
   try {
     markRunning(steps[0]);
+    onProgress?.(steps);
     const pluginInfo = await resolvePluginChart(pluginName);
     markCompleted(steps[0]);
+    onProgress?.(steps);
 
     const ns = namespace ?? (await discoverReleaseNamespace(pluginName, token)) ?? pluginName;
 
     markRunning(steps[1]);
+    onProgress?.(steps);
     await helmUpgrade(pluginName, pluginInfo.chart, ns, token, values);
     markCompleted(steps[1]);
+    onProgress?.(steps);
 
     return { success: true, message: `Plugin "${pluginName}" upgraded successfully`, steps };
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
       markFailed(failedStep, sanitizeErrorMessage(err));
+      onProgress?.(steps);
     }
     return {
       success: false,
@@ -160,6 +202,7 @@ export async function removePlugin(
   token: string,
   deleteNamespace?: boolean,
   namespace?: string,
+  onProgress?: LifecycleProgressCallback,
 ): Promise<LifecycleResponse> {
   const steps: LifecycleStep[] = [
     createStep('remove-config', 'Remove plugin from dashboard config'),
@@ -169,21 +212,30 @@ export async function removePlugin(
   if (deleteNamespace) {
     steps.push(createStep('delete-ns', 'Delete namespace'));
   }
+  onProgress?.(steps);
 
   try {
     const ns = namespace ?? (await discoverReleaseNamespace(pluginName, token)) ?? pluginName;
 
     markRunning(steps[0]);
-    await removePluginFromConfig(token, pluginName);
+    onProgress?.(steps);
+    const wasRegistered = await removePluginFromConfig(token, pluginName, { optional: true });
     markCompleted(steps[0]);
+    if (!wasRegistered) {
+      steps[0].label = 'Plugin was not registered in dashboard config (skipped)';
+    }
+    onProgress?.(steps);
 
     markRunning(steps[1]);
+    onProgress?.(steps);
     await helmUninstall(pluginName, ns, token);
     markCompleted(steps[1]);
+    onProgress?.(steps);
 
     if (deleteNamespace) {
       const nsStep = steps.find((s) => s.id === 'delete-ns')!;
       markRunning(nsStep);
+      onProgress?.(steps);
       const res = await k8sRequest({
         method: 'DELETE',
         path: `/api/v1/namespaces/${ns}`,
@@ -193,6 +245,7 @@ export async function removePlugin(
         throw new Error(`Failed to delete namespace: HTTP ${res.status}`);
       }
       markCompleted(nsStep);
+      onProgress?.(steps);
     }
 
     return { success: true, message: `Plugin "${pluginName}" removed successfully`, steps };
@@ -200,6 +253,7 @@ export async function removePlugin(
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
       markFailed(failedStep, sanitizeErrorMessage(err));
+      onProgress?.(steps);
     }
     return {
       success: false,
@@ -212,31 +266,52 @@ export async function removePlugin(
 export async function enablePlugin(
   pluginName: string,
   token: string,
+  onProgress?: LifecycleProgressCallback,
 ): Promise<LifecycleResponse> {
   const steps: LifecycleStep[] = [
     createStep('resolve', 'Resolve plugin metadata'),
     createStep('enable', 'Add plugin to dashboard config'),
   ];
+  onProgress?.(steps);
 
   try {
     markRunning(steps[0]);
+    onProgress?.(steps);
     const pluginInfo = await resolvePluginChart(pluginName);
     markCompleted(steps[0]);
+    onProgress?.(steps);
 
     markRunning(steps[1]);
+    onProgress?.(steps);
+
+    const ns = (await discoverReleaseNamespace(pluginName, token)) ?? pluginName;
     const mfEntry: ModuleFederationEntry = {
-      scope: pluginInfo.scope,
-      module: pluginInfo.module,
-      remoteEntry: pluginInfo.remoteEntry || `http://${pluginName}.${pluginName}.svc.cluster.local:8080/plugin-entry.js`,
+      name: pluginInfo.mfName,
+      backend: {
+        remoteEntry: '/remoteEntry.js',
+        tls: false,
+        service: { name: pluginName, namespace: ns, port: 8080 },
+      },
+      ...(pluginInfo.hasBff ? {
+        proxyService: [{
+          path: `${pluginInfo.routePath}/api`,
+          pathRewrite: '/api',
+          authorize: true,
+          tls: false,
+          service: { name: `${pluginName}-bff`, namespace: ns, port: 3000 },
+        }],
+      } : {}),
     };
     await addPluginToConfig(token, mfEntry);
     markCompleted(steps[1]);
+    onProgress?.(steps);
 
     return { success: true, message: `Plugin "${pluginName}" enabled`, steps };
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
       markFailed(failedStep, sanitizeErrorMessage(err));
+      onProgress?.(steps);
     }
     return {
       success: false,
@@ -249,21 +324,26 @@ export async function enablePlugin(
 export async function disablePlugin(
   pluginName: string,
   token: string,
+  onProgress?: LifecycleProgressCallback,
 ): Promise<LifecycleResponse> {
   const steps: LifecycleStep[] = [
     createStep('disable', 'Remove plugin from dashboard config'),
   ];
+  onProgress?.(steps);
 
   try {
     markRunning(steps[0]);
+    onProgress?.(steps);
     await removePluginFromConfig(token, pluginName);
     markCompleted(steps[0]);
+    onProgress?.(steps);
 
     return { success: true, message: `Plugin "${pluginName}" disabled`, steps };
   } catch (err) {
     const failedStep = steps.find((s) => s.status === 'running');
     if (failedStep) {
       markFailed(failedStep, sanitizeErrorMessage(err));
+      onProgress?.(steps);
     }
     return {
       success: false,

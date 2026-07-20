@@ -1,7 +1,9 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { useInstalledPlugins, parseRemoteEntryUrl } from '../useInstalledPlugins';
+import { useInstalledPlugins } from '../useInstalledPlugins';
+import { extractServiceInfo } from '../useInstalledPluginNames';
 import { useInstalledPluginNames } from '../useInstalledPluginNames';
 import { useCatalog } from '../useCatalog';
+import { useHelmReleasedPlugins } from '../useHelmReleasedPlugins';
 import { CatalogPlugin } from '~/app/types/catalog';
 
 jest.mock('../useInstalledPluginNames', () => {
@@ -12,9 +14,11 @@ jest.mock('../useInstalledPluginNames', () => {
   };
 });
 jest.mock('../useCatalog');
+jest.mock('../useHelmReleasedPlugins');
 
 const mockUseInstalledPluginNames = useInstalledPluginNames as jest.MockedFunction<typeof useInstalledPluginNames>;
 const mockUseCatalog = useCatalog as jest.MockedFunction<typeof useCatalog>;
+const mockUseHelmReleasedPlugins = useHelmReleasedPlugins as jest.MockedFunction<typeof useHelmReleasedPlugins>;
 
 const mockCatalogPlugins: CatalogPlugin[] = [
   {
@@ -45,14 +49,20 @@ const defaultInstalledReturn = {
   installedNames: new Set(['community-plugins-admin', 'brewet']),
   entries: [
     {
-      scope: 'communityPluginsAdmin',
-      module: './extensions',
-      remoteEntry: 'http://community-plugins-admin.redhat-ods-applications.svc.cluster.local:8080/remoteEntry.js',
+      name: 'communityPluginsAdmin',
+      backend: {
+        remoteEntry: '/remoteEntry.js',
+        tls: false,
+        service: { name: 'community-plugins-admin', namespace: 'redhat-ods-applications', port: 8080 },
+      },
     },
     {
-      scope: 'brewet',
-      module: './extensions',
-      remoteEntry: 'http://brewet.brewet-ns.svc.cluster.local:8080/remoteEntry.js',
+      name: 'brewet',
+      backend: {
+        remoteEntry: '/remoteEntry.js',
+        tls: false,
+        service: { name: 'brewet', namespace: 'brewet-ns', port: 8080 },
+      },
     },
   ],
   loading: false,
@@ -83,33 +93,63 @@ const mockStoppedDeployment = {
   status: { replicas: 0, readyReplicas: 0, availableReplicas: 0 },
 };
 
-describe('parseRemoteEntryUrl', () => {
-  it('parses cluster-internal URL', () => {
-    const result = parseRemoteEntryUrl('http://my-service.my-namespace.svc.cluster.local:8080/remoteEntry.js');
-    expect(result).toEqual({ service: 'my-service', namespace: 'my-namespace' });
+describe('extractServiceInfo', () => {
+  it('extracts from new format (backend.service)', () => {
+    const entry = {
+      name: 'myPlugin',
+      backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'my-service', namespace: 'my-namespace', port: 8080 } },
+    };
+    expect(extractServiceInfo(entry)).toEqual({ service: 'my-service', namespace: 'my-namespace' });
+  });
+
+  it('extracts from old flat format (top-level service)', () => {
+    const entry = {
+      name: 'modelRegistry',
+      remoteEntry: '/remoteEntry.js',
+      service: { name: 'rhods-dashboard', namespace: 'redhat-ods-applications', port: 8043 },
+    };
+    expect(extractServiceInfo(entry)).toEqual({ service: 'rhods-dashboard', namespace: 'redhat-ods-applications' });
+  });
+
+  it('falls back to parsing svc.cluster.local URL from remoteEntry', () => {
+    const entry = {
+      name: 'myPlugin',
+      remoteEntry: 'http://my-service.my-namespace.svc.cluster.local:8080/remoteEntry.js',
+    };
+    expect(extractServiceInfo(entry)).toEqual({ service: 'my-service', namespace: 'my-namespace' });
   });
 
   it('returns null for non-cluster URLs', () => {
-    expect(parseRemoteEntryUrl('http://example.com/remoteEntry.js')).toBeNull();
-    expect(parseRemoteEntryUrl('/remoteEntry.js')).toBeNull();
-    expect(parseRemoteEntryUrl('not-a-url')).toBeNull();
+    expect(extractServiceInfo({ name: 'x', remoteEntry: 'http://example.com/remoteEntry.js' })).toBeNull();
+    expect(extractServiceInfo({ name: 'x', remoteEntry: '/remoteEntry.js' })).toBeNull();
   });
 
-  it('returns null for non-K8s .local hostnames (e.g. mDNS)', () => {
-    expect(parseRemoteEntryUrl('http://printer.local/remoteEntry.js')).toBeNull();
-    expect(parseRemoteEntryUrl('http://my-service.home.local:8080/remoteEntry.js')).toBeNull();
+  it('returns null when no service info available', () => {
+    expect(extractServiceInfo({ name: 'proxyOnly' })).toBeNull();
   });
 
   it('returns null for empty string', () => {
-    expect(parseRemoteEntryUrl('')).toBeNull();
+    expect(extractServiceInfo({ name: 'x', remoteEntry: '' })).toBeNull();
   });
 });
+
+const defaultHelmReturn = {
+  helmInstalledNames: new Set<string>(['community-plugins-admin', 'brewet']),
+  helmVersionMap: new Map<string, string>([
+    ['community-plugins-admin', '1.0.0'],
+    ['brewet', '0.5.0'],
+  ]),
+  loading: false,
+  error: null,
+  refetch: jest.fn(),
+};
 
 describe('useInstalledPlugins', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     mockUseInstalledPluginNames.mockReturnValue(defaultInstalledReturn);
     mockUseCatalog.mockReturnValue(defaultCatalogReturn);
+    mockUseHelmReleasedPlugins.mockReturnValue(defaultHelmReturn);
     global.fetch = jest.fn();
   });
 
@@ -218,15 +258,11 @@ describe('useInstalledPlugins', () => {
     expect(result.current.plugins[0].healthStatus).toBe('unknown');
   });
 
-  it('returns unknown status for non-cluster remoteEntry URLs', async () => {
+  it('returns unknown status when entry has no service info', async () => {
     mockUseInstalledPluginNames.mockReturnValue({
       ...defaultInstalledReturn,
       entries: [
-        {
-          scope: 'myPlugin',
-          module: './extensions',
-          remoteEntry: 'http://example.com/remoteEntry.js',
-        },
+        { name: 'proxyOnly', proxyService: [{ path: '/proxy/api', pathRewrite: '/api', service: { name: 'svc', namespace: 'ns', port: 3000 } }] },
       ],
     });
 
@@ -260,9 +296,10 @@ describe('useInstalledPlugins', () => {
     expect(result.current.catalogError).toBe('Catalog fetch failed');
   });
 
-  it('refetch calls both namesRefetch and catalogRefetch', () => {
+  it('refetch calls namesRefetch, catalogRefetch, and helmRefetch', () => {
     const namesRefetchFn = jest.fn();
     const catalogRefetchFn = jest.fn();
+    const helmRefetchFn = jest.fn();
     mockUseInstalledPluginNames.mockReturnValue({
       ...defaultInstalledReturn,
       refetch: namesRefetchFn,
@@ -271,12 +308,17 @@ describe('useInstalledPlugins', () => {
       ...defaultCatalogReturn,
       refetch: catalogRefetchFn,
     });
+    mockUseHelmReleasedPlugins.mockReturnValue({
+      ...defaultHelmReturn,
+      refetch: helmRefetchFn,
+    });
 
     const { result } = renderHook(() => useInstalledPlugins());
     result.current.refetch();
 
     expect(namesRefetchFn).toHaveBeenCalledTimes(1);
     expect(catalogRefetchFn).toHaveBeenCalledTimes(1);
+    expect(helmRefetchFn).toHaveBeenCalledTimes(1);
   });
 
   it('does not run health checks when entries are empty', () => {

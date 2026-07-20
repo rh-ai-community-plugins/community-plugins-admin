@@ -29,7 +29,7 @@ npm run lint          # ESLint on src/ + markdownlint on **/*.md
 To run a single test file:
 
 ```bash
-npx jest src/app/hooks/useCurrentUser.test.ts
+npx jest src/app/hooks/__tests__/useCurrentUser.spec.ts
 ```
 
 ### BFF Service Commands
@@ -95,7 +95,7 @@ Eleven hooks in `src/app/hooks/` provide data fetching, state management, and AP
 
 - `src/app/types/catalog.ts` — `CatalogPlugin` type for the merged catalog response from the BFF.
 - `src/app/types/installed.ts` — `InstalledPlugin` and `PluginHealthStatus` types for the installed plugins view.
-- `src/app/types/lifecycle.ts` — `LifecycleResult`, `LifecycleStep`, and related types for plugin lifecycle operations.
+- `src/app/types/lifecycle.ts` — `LifecycleResponse`, `LifecycleStep`, and `LifecycleOperation` types for plugin lifecycle operations.
 
 ### Utilities
 
@@ -114,8 +114,8 @@ The BFF app is defined in `bff/src/app.ts` (Express middleware and routes) and s
 - `GET /api/catalog/:name` — Full metadata for a single plugin.
 - `GET /api/plugins` — List all Helm-deployed plugin releases across namespaces.
 - `POST /api/plugins/:name/install` — Install a plugin via Helm. Accepts `namespace` and `values` in the request body.
-- `POST /api/plugins/:name/upgrade` — Upgrade a plugin to the latest chart version.
-- `DELETE /api/plugins/:name` — Remove a plugin (Helm uninstall + config cleanup). Supports `?deleteNamespace=true`.
+- `POST /api/plugins/:name/upgrade` — Upgrade a plugin to the latest chart version. Accepts optional `namespace` and `values` in request body.
+- `DELETE /api/plugins/:name` — Remove a plugin (Helm uninstall + config cleanup). Supports `?deleteNamespace=true` and `?namespace=<string>` query parameters.
 - `POST /api/plugins/:name/enable` — Add a plugin's Module Federation entry to `MODULE_FEDERATION_CONFIG`.
 - `POST /api/plugins/:name/disable` — Remove a plugin's entry from `MODULE_FEDERATION_CONFIG` (plugin stays deployed but hidden).
 
@@ -149,7 +149,7 @@ All lifecycle endpoints require a Bearer token (forwarded from the dashboard) an
 
 - `config/webpack.common.js` — Shared config: entry point, loaders, Module Federation, path alias `~` → `./src`
 - `config/webpack.dev.js` — Dev server on port 9500, proxies `/community-plugins-admin/api` to BFF at `localhost:3000` and `/community-plugins-admin` to dashboard at `localhost:8443`
-- `config/webpack.prod.js` — Output to `dist/`, CSS extraction, vendor chunk splitting
+- `config/webpack.prod.js` — Output to `dist/`, source maps, chunk splitting disabled
 
 ### Test Setup
 
@@ -172,7 +172,7 @@ Jest with `ts-jest` preset and `jsdom` environment (`jest.config.js`). `jest.set
 
 ### CI/CD Workflows
 
-- `.github/workflows/ci.yml` — Runs tests and lint for both frontend and BFF on push/PR to main.
+- `.github/workflows/ci.yml` — Runs tests and lint for both frontend and BFF on push/PR to main and dev. Also lints the Helm chart (helm lint, helm template, RBAC safety guard verification).
 - `.github/workflows/build-push.yml` — Builds and pushes both container images to Quay.io. Manually triggered via `workflow_dispatch` with a version input.
 
 ## Documentation
@@ -191,4 +191,4 @@ docs/project/        — Project plan and phase tracking
 - Path alias: `~` maps to `./src` (webpack) and `@` maps to `./src` (jest). Use `~` in source code imports.
 - UI components use **PatternFly 6** (`@patternfly/react-core`, `@patternfly/react-icons`).
 - TypeScript strict mode is enabled. Target is ES2020 with ESNext modules and `react-jsx` transform.
-- No standalone ESLint config file — uses `@typescript-eslint` defaults via dev dependencies.
+- ESLint is configured via `.eslintrc.json` at the repo root (browser env for frontend) and `bff/.eslintrc.json` (node env for BFF). Both extend `eslint:recommended` and `plugin:@typescript-eslint/recommended`.

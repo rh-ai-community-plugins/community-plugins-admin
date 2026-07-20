@@ -38,7 +38,7 @@ Directory structure of the plugin.
 │       ├── types/                  #   TypeScript type definitions
 │       │   ├── catalog.ts          #     CatalogPlugin type (BFF response)
 │       │   ├── installed.ts        #     InstalledPlugin, PluginHealthStatus types
-│       │   └── lifecycle.ts        #     LifecycleResult, LifecycleStep types
+│       │   └── lifecycle.ts        #     LifecycleResponse, LifecycleStep, LifecycleOperation types
 │       └── utils/
 │           └── maintenance.ts      #     Label color/text helpers for status, maintenance, deployment
 ├── config/                          # Webpack configs

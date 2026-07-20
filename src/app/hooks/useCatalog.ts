@@ -17,12 +17,7 @@ export function useCatalog() {
     }
     setError(null);
 
-    const url =
-      fetchCount > 0
-        ? '/community-plugins-admin/api/catalog?refresh=true'
-        : '/community-plugins-admin/api/catalog';
-
-    fetch(url, { signal: controller.signal })
+    fetch('/community-plugins-admin/api/catalog?refresh=true', { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to fetch catalog: ${res.status}`);
         return res.json();

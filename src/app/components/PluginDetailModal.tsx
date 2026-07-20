@@ -43,6 +43,8 @@ interface PluginDetailModalProps {
   installedLoading: boolean;
   /** Names of plugins with an existing Helm release (may include disabled plugins). */
   helmInstalledNames?: Set<string>;
+  /** Currently installed version (Helm app_version) for the selected plugin. */
+  installedVersion?: string;
   /** Shared lifecycle instance from the parent page — prevents concurrent operations racing. */
   lifecycle: PluginLifecycle;
   onClose: () => void;
@@ -75,6 +77,7 @@ const PluginDetailContent: React.FC<{
   plugin: CatalogPlugin;
   installed: boolean;
   disabled: boolean;
+  upgradeAvailable: boolean;
   isAdmin: boolean;
   onClose: () => void;
   onInstall: () => void;
@@ -83,7 +86,7 @@ const PluginDetailContent: React.FC<{
   onDisable: () => void;
   onEnable: () => void;
   lifecycleLoading: boolean;
-}> = ({ plugin, installed, disabled, isAdmin, onClose, onInstall, onUpgrade, onRemove, onDisable, onEnable, lifecycleLoading }) => {
+}> = ({ plugin, installed, disabled, upgradeAvailable, isAdmin, onClose, onInstall, onUpgrade, onRemove, onDisable, onEnable, lifecycleLoading }) => {
   const displayName = plugin.displayName ?? plugin.name;
 
   return (
@@ -379,15 +382,17 @@ const PluginDetailContent: React.FC<{
           )}
           {isAdmin && installed && (
             <>
-              <FlexItem>
-                <Button
-                  variant="primary"
-                  onClick={onUpgrade}
-                  isDisabled={lifecycleLoading}
-                >
-                  Upgrade
-                </Button>
-              </FlexItem>
+              {upgradeAvailable && (
+                <FlexItem>
+                  <Button
+                    variant="primary"
+                    onClick={onUpgrade}
+                    isDisabled={lifecycleLoading}
+                  >
+                    Upgrade
+                  </Button>
+                </FlexItem>
+              )}
               <FlexItem>
                 <Button
                   variant="secondary"
@@ -447,11 +452,13 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
   installedNames,
   installedLoading,
   helmInstalledNames,
+  installedVersion,
   lifecycle,
   onClose,
   onLifecycleComplete,
 }) => {
   const { plugin, installed, loading, error } = usePluginDetail(pluginName, installedNames, installedLoading);
+  const upgradeAvailable = !!(installed && installedVersion && plugin?.version && installedVersion !== plugin.version);
 
   const disabled = !installed && !!pluginName && !!(helmInstalledNames?.has(pluginName));
 
@@ -523,6 +530,7 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
             plugin={plugin}
             installed={installed}
             disabled={disabled}
+            upgradeAvailable={upgradeAvailable}
             isAdmin={isAdmin}
             onClose={onClose}
             onInstall={handleInstall}
@@ -554,7 +562,7 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
       <LifecycleProgressModal
         isOpen={showProgress}
         operation={lifecycle.operation}
-        steps={lifecycle.result?.steps ?? []}
+        steps={lifecycle.loading ? lifecycle.steps : (lifecycle.result?.steps ?? [])}
         success={lifecycle.loading ? null : lifecycle.result?.success ?? null}
         message={lifecycle.result?.message ?? null}
         onClose={handleLifecycleComplete}

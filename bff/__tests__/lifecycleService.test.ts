@@ -41,18 +41,19 @@ const FAKE_METADATA = {
   name: 'my-plugin',
   version: '1.0.0',
   install: { helm: { registry: 'oci://quay.io/charts/my-plugin' } },
-  remote: { spec: { scope: 'myPlugin', module: './extensions', remoteEntry: 'http://my-plugin.my-plugin.svc.cluster.local:8080/plugin-entry.js' } },
+  remote: { type: 'module-federation', spec: { name: 'myPlugin', scope: 'myPlugin', paths: [{ type: 'route', path: '/my-plugin' }] } },
 };
 
 beforeEach(() => {
   jest.resetAllMocks();
   mockGetRegistryPlugins.mockResolvedValue([FAKE_REGISTRY_ENTRY]);
   mockGetPluginMetadata.mockResolvedValue(FAKE_METADATA as never);
+  mockDiscoverReleaseNamespace.mockResolvedValue(null);
   mockHelmInstall.mockResolvedValue('');
   mockHelmUpgrade.mockResolvedValue('{}');
   mockHelmUninstall.mockResolvedValue('');
   mockAddPluginToConfig.mockResolvedValue(undefined);
-  mockRemovePluginFromConfig.mockResolvedValue(undefined);
+  mockRemovePluginFromConfig.mockResolvedValue(true);
   mockK8sRequest.mockResolvedValue({ status: 200, body: {} });
 });
 
@@ -261,7 +262,13 @@ describe('installPlugin', () => {
     );
     expect(mockAddPluginToConfig).toHaveBeenCalledWith(
       'token',
-      expect.objectContaining({ scope: 'myPlugin', module: './extensions' }),
+      expect.objectContaining({
+        name: 'myPlugin',
+        backend: expect.objectContaining({
+          remoteEntry: '/remoteEntry.js',
+          service: { name: 'my-plugin', namespace: 'my-plugin', port: 8080 },
+        }),
+      }),
     );
     expect(result.steps.every((s) => s.status === 'completed')).toBe(true);
   });
@@ -291,8 +298,9 @@ describe('installPlugin', () => {
     expect(mockHelmInstall).not.toHaveBeenCalled();
   });
 
-  it('returns failure when helm install fails', async () => {
+  it('returns failure when helm install fails and cleans up the release', async () => {
     mockHelmInstall.mockRejectedValue(new Error('helm install error'));
+    mockHelmUninstall.mockResolvedValue('');
 
     const result = await installPlugin('my-plugin', 'token');
 
@@ -301,10 +309,37 @@ describe('installPlugin', () => {
     const failedStep = result.steps.find((s) => s.status === 'failed');
     expect(failedStep?.id).toBe('helm-install');
     expect(mockAddPluginToConfig).not.toHaveBeenCalled();
+    expect(mockHelmUninstall).toHaveBeenCalledWith('my-plugin', 'my-plugin', 'token');
+    const cleanupStep = result.steps.find((s) => s.id === 'cleanup');
+    expect(cleanupStep?.status).toBe('completed');
   });
 
-  it('returns failure when config update fails', async () => {
+  it('cleans up with custom namespace when helm install fails', async () => {
+    mockHelmInstall.mockRejectedValue(new Error('helm install error'));
+    mockHelmUninstall.mockResolvedValue('');
+
+    const result = await installPlugin('my-plugin', 'token', 'custom-ns');
+
+    expect(result.success).toBe(false);
+    expect(mockHelmUninstall).toHaveBeenCalledWith('my-plugin', 'custom-ns', 'token');
+  });
+
+  it('reports cleanup failure without masking the original error', async () => {
+    mockHelmInstall.mockRejectedValue(new Error('helm install error'));
+    mockHelmUninstall.mockRejectedValue(new Error('uninstall also failed'));
+
+    const result = await installPlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toMatch(/helm install error/);
+    const cleanupStep = result.steps.find((s) => s.id === 'cleanup');
+    expect(cleanupStep?.status).toBe('failed');
+    expect(cleanupStep?.error).toMatch(/uninstall also failed/);
+  });
+
+  it('returns failure when config update fails and rolls back helm release', async () => {
     mockAddPluginToConfig.mockRejectedValue(new Error('config update error'));
+    mockHelmUninstall.mockResolvedValue('');
 
     const result = await installPlugin('my-plugin', 'token');
 
@@ -312,6 +347,19 @@ describe('installPlugin', () => {
     expect(result.message).toMatch(/Failed to install plugin/);
     const failedStep = result.steps.find((s) => s.status === 'failed');
     expect(failedStep?.id).toBe('update-config');
+    expect(mockHelmUninstall).toHaveBeenCalledWith('my-plugin', 'my-plugin', 'token');
+    const cleanupStep = result.steps.find((s) => s.id === 'cleanup');
+    expect(cleanupStep?.status).toBe('completed');
+  });
+
+  it('does not attempt cleanup when resolve step fails', async () => {
+    mockGetRegistryPlugins.mockResolvedValue([]);
+
+    const result = await installPlugin('unknown-plugin', 'token');
+
+    expect(result.success).toBe(false);
+    expect(mockHelmUninstall).not.toHaveBeenCalled();
+    expect(result.steps.find((s) => s.id === 'cleanup')).toBeUndefined();
   });
 });
 
@@ -323,7 +371,12 @@ describe('enablePlugin', () => {
     expect(result.message).toMatch(/enabled/);
     expect(mockAddPluginToConfig).toHaveBeenCalledWith(
       'token',
-      expect.objectContaining({ scope: 'myPlugin', module: './extensions' }),
+      expect.objectContaining({
+        name: 'myPlugin',
+        backend: expect.objectContaining({
+          remoteEntry: '/remoteEntry.js',
+        }),
+      }),
     );
     expect(result.steps.every((s) => s.status === 'completed')).toBe(true);
   });

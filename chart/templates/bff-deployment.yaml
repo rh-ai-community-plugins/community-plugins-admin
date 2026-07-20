@@ -37,6 +37,10 @@ spec:
               containerPort: {{ .Values.bff.service.targetPort }}
               protocol: TCP
           env:
+            - name: DASHBOARD_NAMESPACE
+              value: {{ .Values.bff.dashboardNamespace | quote }}
+            - name: DASHBOARD_DEPLOYMENT
+              value: {{ .Values.bff.dashboardDeployment | quote }}
             - name: CHARTER_REGISTRY_URL
               value: {{ .Values.bff.charterRegistryUrl | quote }}
             - name: CHARTER_CACHE_TTL_MS

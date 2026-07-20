@@ -208,14 +208,13 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
    - Return merged list with install state, health, version info
 
 2. **Installed page** (`src/app/pages/InstalledPage.tsx`)
-   - PatternFly table: Plugin Name, Version (installed vs. latest), Status (running/stopped/error), Enabled/Disabled, Actions
+   - PatternFly table: Name, Version, Status (running/degraded/stopped/unknown), Maintenance, Actions
    - Status column: badge with pod health
-   - Enabled/Disabled toggle (admin only): enables or disables the plugin in the dashboard
-   - Actions (admin only): Upgrade (if newer version available), Remove
+   - Actions (admin only): kebab menu with View details, Upgrade, Disable/Enable, Remove
    - Non-admin view: same table without action columns
 
 3. **Admin detection**
-   - Use `useAccessReview` to check if the current user can modify the `rhods-dashboard` deployment in `redhat-ods-applications`
+   - Use `useCurrentUser` to check the `isAdmin` field from the `/api/status` dashboard endpoint
    - Conditionally render management actions
 
 4. **Unit tests**
@@ -241,7 +240,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 2. **Plugin detail modal** (`src/app/components/PluginDetailModal.tsx`)
    - PatternFly Modal (large variant)
-   - Header: display name, version, status badge, maintenance tier
+   - Header: plugin display name (or name)
    - Description section
    - Compatibility info: min RHOAI version, tested versions
    - Deployment model: cluster-shared / per-project

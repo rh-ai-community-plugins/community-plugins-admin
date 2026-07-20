@@ -9,7 +9,7 @@ export function fetchUrl(url: string, redirectsRemaining = MAX_REDIRECTS): Promi
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http;
     const req = client
-      .get(url, { timeout: REQUEST_TIMEOUT_MS }, (res) => {
+      .get(url, { timeout: REQUEST_TIMEOUT_MS, headers: { 'Cache-Control': 'no-cache' } }, (res) => {
         if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
           if (redirectsRemaining <= 0) {
             res.resume();

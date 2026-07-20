@@ -1,21 +1,19 @@
 import { CatalogPlugin } from '~/app/types/catalog';
 
 export interface ModuleFederationEntry {
-  scope: string;
-  module: string;
-  remoteEntry: string;
+  name: string;
+  [key: string]: unknown;
 }
 
 export type PluginHealthStatus = 'running' | 'degraded' | 'stopped' | 'unknown';
 
 export interface InstalledPlugin {
   name: string;
-  scope: string;
-  module: string;
-  remoteEntry: string;
+  mfName: string;
   enabled: boolean;
   healthStatus: PluginHealthStatus;
   availableReplicas?: number;
   desiredReplicas?: number;
+  installedVersion?: string;
   catalogPlugin?: CatalogPlugin;
 }

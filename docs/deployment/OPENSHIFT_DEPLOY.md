@@ -204,9 +204,10 @@ The Helm chart provisions a ClusterRole and ClusterRoleBinding for the BFF's Ser
 
 | API Group | Resources | Verbs | Purpose |
 |---|---|---|---|
-| `""` (core) | `namespaces` | `get`, `list`, `create`, `delete` | Manage namespaces for plugin deployments |
+| `""` (core) | `namespaces` | `get`, `list`, `create`, `update`, `patch`, `delete` | Manage namespaces for plugin deployments |
 | `apps` | `deployments`, `statefulsets`, `daemonsets`, `replicasets` | `get`, `list`, `create`, `update`, `patch`, `delete` | Manage workload resources created by plugin Helm charts |
-| `""` (core) | `services`, `configmaps`, `secrets`, `serviceaccounts`, `persistentvolumeclaims` | `get`, `list`, `watch`, `create`, `update`, `patch`, `delete` | Manage core resources created by plugin Helm charts (includes Helm release secrets) |
+| `""` (core) | `services`, `configmaps`, `serviceaccounts`, `persistentvolumeclaims` | `get`, `list`, `watch`, `create`, `update`, `patch`, `delete` | Manage core resources created by plugin Helm charts |
+| `""` (core) | `secrets` | `get`, `list`, `create`, `update`, `patch`, `delete` | Helm release secrets (`watch` not required for lifecycle operations) |
 | `rbac.authorization.k8s.io` | `roles`, `rolebindings` | `get`, `list`, `create`, `update`, `patch`, `delete` | Manage namespace-scoped RBAC resources created by plugin Helm charts |
 | `networking.k8s.io` | `ingresses`, `networkpolicies` | `get`, `list`, `create`, `update`, `patch`, `delete` | Manage networking resources created by plugin Helm charts |
 

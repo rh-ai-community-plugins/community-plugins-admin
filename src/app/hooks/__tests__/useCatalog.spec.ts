@@ -46,7 +46,7 @@ describe('useCatalog', () => {
     expect(result.current.isRefetching).toBe(false);
     expect(result.current.error).toBeNull();
     expect(global.fetch).toHaveBeenCalledWith(
-      '/community-plugins-admin/api/catalog',
+      '/community-plugins-admin/api/catalog?refresh=true',
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     );
   });

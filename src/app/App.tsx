@@ -10,6 +10,8 @@ import {
 } from '@patternfly/react-core';
 import ExclamationTriangleIcon from '@patternfly/react-icons/dist/js/icons/exclamation-triangle-icon';
 import CommunityBanner from '~/app/components/CommunityBanner';
+import DashboardRestartBanner from '~/app/components/DashboardRestartBanner';
+import { DashboardStatusProvider } from '~/app/contexts/DashboardStatusContext';
 import CatalogPage from '~/app/pages/CatalogPage';
 import InstalledPage from '~/app/pages/InstalledPage';
 
@@ -62,20 +64,23 @@ class ErrorBoundary extends React.Component<React.PropsWithChildren, ErrorBounda
 }
 
 const App: React.FC = () => (
-  <div className="community-plugin-layout">
-    {/* [SHARED] Do not remove — all community plugins must display the CommunityBanner */}
-    <CommunityBanner />
-    <div className="community-plugin-content">
-      <ErrorBoundary>
-        <Routes>
-          <Route path="/" element={<Navigate to="catalog" replace />} />
-          <Route path="catalog/*" element={<CatalogPage />} />
-          <Route path="installed/*" element={<InstalledPage />} />
-          <Route path="*" element={<Navigate to="catalog" replace />} />
-        </Routes>
-      </ErrorBoundary>
+  <DashboardStatusProvider>
+    <div className="community-plugin-layout">
+      {/* [SHARED] Do not remove — all community plugins must display the CommunityBanner */}
+      <CommunityBanner />
+      <DashboardRestartBanner className="pf-v6-u-mx-lg pf-v6-u-mt-md" />
+      <div className="community-plugin-content">
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Navigate to="catalog" replace />} />
+            <Route path="catalog/*" element={<CatalogPage />} />
+            <Route path="installed/*" element={<InstalledPage />} />
+            <Route path="*" element={<Navigate to="catalog" replace />} />
+          </Routes>
+        </ErrorBoundary>
+      </div>
     </div>
-  </div>
+  </DashboardStatusProvider>
 );
 
 export default App;

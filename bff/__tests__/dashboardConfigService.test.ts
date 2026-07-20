@@ -30,8 +30,54 @@ const deploymentWithConfig = (configValue: string, resourceVersion?: string) => 
   },
 });
 
+const deploymentWithConfigMap = (cmName: string, cmKey: string, resourceVersion?: string) => ({
+  ...(resourceVersion !== undefined && { metadata: { resourceVersion } }),
+  spec: {
+    template: {
+      metadata: { annotations: {} },
+      spec: {
+        containers: [
+          {
+            name: 'rhods-dashboard',
+            env: [
+              { name: 'OTHER_VAR', value: 'foo' },
+              { name: 'MODULE_FEDERATION_CONFIG', valueFrom: { configMapKeyRef: { name: cmName, key: cmKey } } },
+            ],
+          },
+        ],
+      },
+    },
+  },
+});
+
+const deploymentWithInlineAndAnnotation = (configValue: string, cmRef: string, resourceVersion?: string) => ({
+  metadata: {
+    ...(resourceVersion !== undefined && { resourceVersion }),
+    annotations: { 'community-plugins-admin/configMapRef': cmRef },
+  },
+  spec: {
+    template: {
+      spec: {
+        containers: [
+          {
+            name: 'rhods-dashboard',
+            env: [
+              { name: 'OTHER_VAR', value: 'foo' },
+              { name: 'MODULE_FEDERATION_CONFIG', value: configValue },
+            ],
+          },
+        ],
+      },
+    },
+  },
+});
+
 const sampleEntries = [
-  { scope: 'communityPluginsAdmin', module: './extensions', remoteEntry: 'http://svc:8080/remoteEntry.js' },
+  { name: 'communityPluginsAdmin', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'community-plugins-admin', namespace: 'community-plugins-admin', port: 8080 } } },
+];
+
+const oldFormatEntries = [
+  { name: 'modelRegistry', remoteEntry: '/remoteEntry.js', authorize: true, tls: true, service: { name: 'rhods-dashboard', namespace: 'redhat-ods-applications', port: 8043 } },
 ];
 
 describe('scopeToKebab', () => {
@@ -61,7 +107,7 @@ describe('kebabToCamelScope', () => {
 });
 
 describe('getModuleFederationConfig', () => {
-  it('returns entries from deployment', async () => {
+  it('returns entries from inline deployment env var', async () => {
     mockK8sRequest.mockResolvedValue({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries)),
@@ -69,6 +115,45 @@ describe('getModuleFederationConfig', () => {
 
     const result = await getModuleFederationConfig('test-token');
     expect(result).toEqual(sampleEntries);
+  });
+
+  it('returns entries from ConfigMap when env var uses valueFrom', async () => {
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithConfigMap('dashboard-config', 'mf-config'),
+    });
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: { data: { 'mf-config': JSON.stringify(oldFormatEntries) } },
+    });
+
+    const result = await getModuleFederationConfig('test-token');
+    expect(result).toEqual(oldFormatEntries);
+  });
+
+  it('resyncs with ConfigMap via saved annotation', async () => {
+    const cmEntries = [
+      { name: 'modelRegistry', remoteEntry: '/remoteEntry.js' },
+      { name: 'newEntry', remoteEntry: '/remoteEntry.js' },
+    ];
+    const inlineEntries = [
+      { name: 'modelRegistry', remoteEntry: '/remoteEntry.js' },
+      { name: 'helloWorld', backend: { remoteEntry: '/remoteEntry.js' } },
+    ];
+
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithInlineAndAnnotation(JSON.stringify(inlineEntries), 'federation-config/mf-config.json'),
+    });
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: { data: { 'mf-config.json': JSON.stringify(cmEntries) } },
+    });
+
+    const result = await getModuleFederationConfig('test-token');
+    // ConfigMap entries (2) + community entries not in ConfigMap (helloWorld)
+    expect(result).toHaveLength(3);
+    expect(result.map((e) => e.name)).toEqual(['modelRegistry', 'newEntry', 'helloWorld']);
   });
 
   it('returns empty array when env var is missing', async () => {
@@ -94,13 +179,13 @@ describe('addPluginToConfig', () => {
     mockK8sRequest.mockReset();
   });
 
-  it('adds entry and patches deployment', async () => {
+  it('adds entry and patches deployment (inline source)', async () => {
     mockK8sRequest.mockResolvedValue({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries)),
     });
 
-    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
     await addPluginToConfig('test-token', newEntry);
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
@@ -108,8 +193,80 @@ describe('addPluginToConfig', () => {
     expect(patchCall![0].contentType).toBe('application/json-patch+json');
   });
 
+  it('reads entries from ConfigMap and writes inline with annotation (configmap source)', async () => {
+    // GET deployment → valueFrom
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithConfigMap('dashboard-config', 'mf-config', '10'),
+    });
+    // GET ConfigMap → current entries
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: { data: { 'mf-config': JSON.stringify(oldFormatEntries) } },
+    });
+    // PATCH deployment → env var + annotation
+    mockK8sRequest.mockResolvedValueOnce({ status: 200, body: {} });
+
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
+    await addPluginToConfig('test-token', newEntry);
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    expect(patchCall).toBeDefined();
+    const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
+
+    // Env var replace with merged entries
+    const replaceOp = patchBody.find((op) => op.op === 'replace');
+    expect(replaceOp).toBeDefined();
+    const entries = JSON.parse((replaceOp!.value as { value: string }).value);
+    expect(entries).toHaveLength(2);
+    expect(entries[0].name).toBe('modelRegistry');
+    expect(entries[1].name).toBe('brewet');
+
+    // ConfigMap reference annotation saved
+    const annotationOp = patchBody.find((op) => op.path.includes('annotations'));
+    expect(annotationOp).toBeDefined();
+    expect(annotationOp!.op).toBe('add');
+  });
+
+  it('resyncs with ConfigMap via saved annotation on subsequent operations', async () => {
+    const cmEntries = [
+      { name: 'modelRegistry', remoteEntry: '/remoteEntry.js' },
+      { name: 'newOperatorPlugin', remoteEntry: '/remoteEntry.js' },
+    ];
+    const inlineEntries = [
+      { name: 'modelRegistry', remoteEntry: '/remoteEntry.js' },
+      { name: 'helloWorld', backend: { remoteEntry: '/remoteEntry.js', service: { name: 'hello-world', namespace: 'hello-world', port: 8080 } } },
+    ];
+
+    // GET deployment → inline value + annotation
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithInlineAndAnnotation(JSON.stringify(inlineEntries), 'federation-config/mf-config.json', '20'),
+    });
+    // GET ConfigMap → updated entries (operator added newOperatorPlugin)
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: { data: { 'mf-config.json': JSON.stringify(cmEntries) } },
+    });
+    // PATCH deployment
+    mockK8sRequest.mockResolvedValueOnce({ status: 200, body: {} });
+
+    const newEntry = { name: 'anotherPlugin', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'another', namespace: 'another', port: 8080 } } };
+    await addPluginToConfig('test-token', newEntry);
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
+    const replaceOp = patchBody.find((op) => op.op === 'replace');
+    const entries = JSON.parse((replaceOp!.value as { value: string }).value);
+
+    // Should have: 2 from ConfigMap + helloWorld (community) + anotherPlugin (new)
+    expect(entries).toHaveLength(4);
+    expect(entries.map((e: { name: string }) => e.name)).toEqual([
+      'modelRegistry', 'newOperatorPlugin', 'helloWorld', 'anotherPlugin',
+    ]);
+  });
+
   it('appends via env/- when container already has an env array', async () => {
-    // Container has an existing env array — patch must use env/- to append.
     mockK8sRequest.mockResolvedValue({
       status: 200,
       body: {
@@ -128,7 +285,7 @@ describe('addPluginToConfig', () => {
       },
     });
 
-    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
     await addPluginToConfig('test-token', newEntry);
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
@@ -139,8 +296,6 @@ describe('addPluginToConfig', () => {
   });
 
   it('creates env array via env (no /-) when container has no env field', async () => {
-    // Container has NO env field — using env/- would yield HTTP 422.
-    // The patch must use env (without /-) to create the array.
     mockK8sRequest.mockResolvedValue({
       status: 200,
       body: {
@@ -150,7 +305,6 @@ describe('addPluginToConfig', () => {
               containers: [
                 {
                   name: 'rhods-dashboard',
-                  // intentionally no env field
                 },
               ],
             },
@@ -159,16 +313,14 @@ describe('addPluginToConfig', () => {
       },
     });
 
-    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
     await addPluginToConfig('test-token', newEntry);
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
     expect(patchCall).toBeDefined();
     const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
     expect(patchBody[0].op).toBe('add');
-    // Path must end with /env, not /env/-
     expect(patchBody[0].path).toMatch(/\/env$/);
-    // Value must be an array containing the new entry
     expect(Array.isArray(patchBody[0].value)).toBe(true);
   });
 
@@ -178,7 +330,7 @@ describe('addPluginToConfig', () => {
       body: deploymentWithConfig(JSON.stringify(sampleEntries)),
     });
 
-    const duplicate = { scope: 'communityPluginsAdmin', module: './extensions', remoteEntry: 'http://svc:8080/remoteEntry.js' };
+    const duplicate = { name: 'communityPluginsAdmin', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'cpa', namespace: 'cpa', port: 8080 } } };
     await expect(addPluginToConfig('test-token', duplicate)).rejects.toThrow('already in');
   });
 
@@ -188,46 +340,40 @@ describe('addPluginToConfig', () => {
       body: deploymentWithConfig(JSON.stringify(sampleEntries), '42'),
     });
 
-    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
     await addPluginToConfig('test-token', newEntry);
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
     expect(patchCall).toBeDefined();
     const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
-    // First op must be the resourceVersion test for optimistic concurrency
     expect(patchBody[0]).toEqual({ op: 'test', path: '/metadata/resourceVersion', value: '42' });
-    // Second op is the actual mutation
     expect(patchBody[1].op).toBe('replace');
   });
 
   it('omits the resourceVersion test op when the deployment has no resourceVersion', async () => {
-    // Deployment with no metadata.resourceVersion — no test op should be added
     mockK8sRequest.mockResolvedValue({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries)),
     });
 
-    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
     await addPluginToConfig('test-token', newEntry);
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
     expect(patchCall).toBeDefined();
     const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
-    // Only the mutation op should be present (no test op)
     expect(patchBody).toHaveLength(1);
     expect(patchBody[0].op).toBe('replace');
   });
 
   it('retries on 409 Conflict and succeeds on the second attempt', async () => {
-    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
 
-    // Attempt 1: GET succeeds with resourceVersion '1', PATCH returns 409
     mockK8sRequest.mockResolvedValueOnce({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries), '1'),
     });
     mockK8sRequest.mockResolvedValueOnce({ status: 409, body: {} });
-    // Attempt 2: GET succeeds with updated resourceVersion '2', PATCH returns 200
     mockK8sRequest.mockResolvedValueOnce({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries), '2'),
@@ -235,14 +381,12 @@ describe('addPluginToConfig', () => {
     mockK8sRequest.mockResolvedValueOnce({ status: 200, body: {} });
 
     await expect(addPluginToConfig('test-token', newEntry)).resolves.toBeUndefined();
-    // Two GET + two PATCH calls across the two attempts
     expect(mockK8sRequest).toHaveBeenCalledTimes(4);
   });
 
   it('throws after exhausting all retries on repeated 409 Conflict', async () => {
-    const newEntry = { scope: 'brewet', module: './extensions', remoteEntry: 'http://brewet:8080/remoteEntry.js' };
+    const newEntry = { name: 'brewet', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'brewet', namespace: 'brewet', port: 8080 } } };
 
-    // Each of the 3 attempts: GET → 200, PATCH → 409
     for (let i = 0; i < 3; i++) {
       mockK8sRequest.mockResolvedValueOnce({
         status: 200,
@@ -252,7 +396,6 @@ describe('addPluginToConfig', () => {
     }
 
     await expect(addPluginToConfig('test-token', newEntry)).rejects.toThrow('409');
-    // 3 attempts × (1 GET + 1 PATCH) = 6 calls total
     expect(mockK8sRequest).toHaveBeenCalledTimes(6);
   });
 });
@@ -262,7 +405,7 @@ describe('removePluginFromConfig', () => {
     mockK8sRequest.mockReset();
   });
 
-  it('removes entry with camelCase scope and patches deployment', async () => {
+  it('removes entry with camelCase name and patches deployment', async () => {
     mockK8sRequest.mockResolvedValue({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries)),
@@ -274,18 +417,9 @@ describe('removePluginFromConfig', () => {
     expect(patchCall).toBeDefined();
   });
 
-  it('removes entry with PascalCase scope by plugin name', async () => {
-    // Simulates the bug scenario: plugin.yaml declares scope "CommunityPluginsAdmin"
-    // (PascalCase), which is stored verbatim by addPluginToConfig. removePluginFromConfig
-    // must look up the actual stored scope rather than re-deriving it via
-    // kebabToCamelScope, which would produce "communityPluginsAdmin" (lowerCamelCase)
-    // and fail to match.
+  it('removes entry with PascalCase name by plugin name', async () => {
     const pascalEntries = [
-      {
-        scope: 'CommunityPluginsAdmin',
-        module: './extensions',
-        remoteEntry: 'http://svc:8080/remoteEntry.js',
-      },
+      { name: 'CommunityPluginsAdmin', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'cpa', namespace: 'cpa', port: 8080 } } },
     ];
     mockK8sRequest.mockResolvedValue({
       status: 200,
@@ -296,15 +430,14 @@ describe('removePluginFromConfig', () => {
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
     expect(patchCall).toBeDefined();
-    // Verify the patched value is an empty array (entry was removed)
-    const patchBody = patchCall![0].body as Array<{ value: string }>;
-    expect(JSON.parse(patchBody[0].value)).toEqual([]);
+    const patchBody = patchCall![0].body as Array<{ value: { name: string; value: string } }>;
+    expect(JSON.parse(patchBody[0].value.value)).toEqual([]);
   });
 
   it('removes only the matching entry when multiple plugins are present', async () => {
     const multiEntries = [
-      { scope: 'CommunityPluginsAdmin', module: './extensions', remoteEntry: 'http://cpa:8080/remoteEntry.js' },
-      { scope: 'anotherPlugin', module: './extensions', remoteEntry: 'http://another:8080/remoteEntry.js' },
+      { name: 'CommunityPluginsAdmin', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'cpa', namespace: 'cpa', port: 8080 } } },
+      { name: 'anotherPlugin', backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'ap', namespace: 'ap', port: 8080 } } },
     ];
     mockK8sRequest.mockResolvedValue({
       status: 200,
@@ -315,10 +448,46 @@ describe('removePluginFromConfig', () => {
 
     const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
     expect(patchCall).toBeDefined();
-    const patchBody = patchCall![0].body as Array<{ value: string }>;
-    const remaining = JSON.parse(patchBody[0].value) as typeof multiEntries;
+    const patchBody = patchCall![0].body as Array<{ value: { name: string; value: string } }>;
+    const remaining = JSON.parse(patchBody[0].value.value);
     expect(remaining).toHaveLength(1);
-    expect(remaining[0].scope).toBe('anotherPlugin');
+    expect(remaining[0].name).toBe('anotherPlugin');
+  });
+
+  it('resyncs with ConfigMap on remove via annotation', async () => {
+    const cmEntries = [
+      { name: 'modelRegistry', remoteEntry: '/remoteEntry.js' },
+      { name: 'newOperatorEntry', remoteEntry: '/remoteEntry.js' },
+    ];
+    const inlineEntries = [
+      { name: 'modelRegistry', remoteEntry: '/remoteEntry.js' },
+      { name: 'helloWorld', backend: { remoteEntry: '/remoteEntry.js', service: { name: 'hello-world', namespace: 'hello-world', port: 8080 } } },
+    ];
+
+    // GET deployment → inline + annotation
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: deploymentWithInlineAndAnnotation(JSON.stringify(inlineEntries), 'federation-config/mf-config.json', '20'),
+    });
+    // GET ConfigMap → operator added newOperatorEntry
+    mockK8sRequest.mockResolvedValueOnce({
+      status: 200,
+      body: { data: { 'mf-config.json': JSON.stringify(cmEntries) } },
+    });
+    // PATCH deployment
+    mockK8sRequest.mockResolvedValueOnce({ status: 200, body: {} });
+
+    const result = await removePluginFromConfig('test-token', 'hello-world');
+    expect(result).toBe(true);
+
+    const patchCall = mockK8sRequest.mock.calls.find((c) => c[0].method === 'PATCH');
+    const patchBody = patchCall![0].body as Array<{ op: string; path: string; value: unknown }>;
+    const replaceOp = patchBody.find((op) => op.op === 'replace');
+    const remaining = JSON.parse((replaceOp!.value as { value: string }).value);
+
+    // Should have: 2 from ConfigMap (including operator-added entry), helloWorld removed
+    expect(remaining).toHaveLength(2);
+    expect(remaining.map((e: { name: string }) => e.name)).toEqual(['modelRegistry', 'newOperatorEntry']);
   });
 
   it('throws when plugin not found', async () => {
@@ -331,26 +500,22 @@ describe('removePluginFromConfig', () => {
   });
 
   it('retries on 409 Conflict and succeeds on the second attempt', async () => {
-    // Attempt 1: GET succeeds with resourceVersion '1', PATCH returns 409
     mockK8sRequest.mockResolvedValueOnce({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries), '1'),
     });
     mockK8sRequest.mockResolvedValueOnce({ status: 409, body: {} });
-    // Attempt 2: GET succeeds with updated resourceVersion '2', PATCH returns 200
     mockK8sRequest.mockResolvedValueOnce({
       status: 200,
       body: deploymentWithConfig(JSON.stringify(sampleEntries), '2'),
     });
     mockK8sRequest.mockResolvedValueOnce({ status: 200, body: {} });
 
-    await expect(removePluginFromConfig('test-token', 'community-plugins-admin')).resolves.toBeUndefined();
-    // Two GET + two PATCH calls across the two attempts
+    await expect(removePluginFromConfig('test-token', 'community-plugins-admin')).resolves.toBe(true);
     expect(mockK8sRequest).toHaveBeenCalledTimes(4);
   });
 
   it('throws after exhausting all retries on repeated 409 Conflict', async () => {
-    // Each of the 3 attempts: GET → 200, PATCH → 409
     for (let i = 0; i < 3; i++) {
       mockK8sRequest.mockResolvedValueOnce({
         status: 200,
@@ -360,7 +525,6 @@ describe('removePluginFromConfig', () => {
     }
 
     await expect(removePluginFromConfig('test-token', 'community-plugins-admin')).rejects.toThrow('409');
-    // 3 attempts × (1 GET + 1 PATCH) = 6 calls total
     expect(mockK8sRequest).toHaveBeenCalledTimes(6);
   });
 });

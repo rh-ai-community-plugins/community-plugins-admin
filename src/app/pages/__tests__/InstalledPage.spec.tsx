@@ -20,9 +20,7 @@ const mockUseCurrentUser = useCurrentUser as jest.MockedFunction<typeof useCurre
 const mockPlugins: InstalledPlugin[] = [
   {
     name: 'community-plugins-admin',
-    scope: 'communityPluginsAdmin',
-    module: './extensions',
-    remoteEntry: 'http://cpa.ns.svc.cluster.local:8080/remoteEntry.js',
+    mfName: 'communityPluginsAdmin',
     enabled: true,
     healthStatus: 'running',
     availableReplicas: 1,
@@ -41,9 +39,7 @@ const mockPlugins: InstalledPlugin[] = [
   },
   {
     name: 'brewet',
-    scope: 'brewet',
-    module: './extensions',
-    remoteEntry: 'http://brewet.ns.svc.cluster.local:8080/remoteEntry.js',
+    mfName: 'brewet',
     enabled: true,
     healthStatus: 'degraded',
     availableReplicas: 1,
@@ -62,9 +58,7 @@ const mockPlugins: InstalledPlugin[] = [
   },
   {
     name: 'unknown-plugin',
-    scope: 'unknownPlugin',
-    module: './extensions',
-    remoteEntry: 'http://example.com/remoteEntry.js',
+    mfName: 'unknownPlugin',
     enabled: true,
     healthStatus: 'unknown',
   },
@@ -77,6 +71,7 @@ const defaultReturn = {
   isRefetching: false,
   error: null,
   catalogError: null,
+  helmVersionMap: new Map<string, string>(),
   refetch: jest.fn(),
 };
 

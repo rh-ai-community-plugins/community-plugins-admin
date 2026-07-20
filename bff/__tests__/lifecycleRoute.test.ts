@@ -142,7 +142,7 @@ describe('lifecycle routes', () => {
       const res = await req('POST', '/api/plugins/my-plugin/install', {}, 'token');
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(mockInstall).toHaveBeenCalledWith('my-plugin', 'token', undefined, undefined);
+      expect(mockInstall).toHaveBeenCalledWith('my-plugin', 'token', undefined, undefined, undefined);
     });
   });
 
@@ -156,14 +156,14 @@ describe('lifecycle routes', () => {
       mockUpgrade.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('POST', '/api/plugins/my-plugin/upgrade', {}, 'token');
       expect(res.status).toBe(200);
-      expect(mockUpgrade).toHaveBeenCalledWith('my-plugin', 'token', undefined, undefined);
+      expect(mockUpgrade).toHaveBeenCalledWith('my-plugin', 'token', undefined, undefined, undefined);
     });
 
     it('passes custom namespace to upgradePlugin', async () => {
       mockUpgrade.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('POST', '/api/plugins/my-plugin/upgrade', { namespace: 'custom-ns' }, 'token');
       expect(res.status).toBe(200);
-      expect(mockUpgrade).toHaveBeenCalledWith('my-plugin', 'token', 'custom-ns', undefined);
+      expect(mockUpgrade).toHaveBeenCalledWith('my-plugin', 'token', 'custom-ns', undefined, undefined);
     });
 
     it('returns 400 for invalid namespace in body', async () => {
@@ -189,14 +189,14 @@ describe('lifecycle routes', () => {
       mockRemove.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('DELETE', '/api/plugins/my-plugin', undefined, 'token');
       expect(res.status).toBe(200);
-      expect(mockRemove).toHaveBeenCalledWith('my-plugin', 'token', false, undefined);
+      expect(mockRemove).toHaveBeenCalledWith('my-plugin', 'token', false, undefined, undefined);
     });
 
     it('passes custom namespace query param to removePlugin', async () => {
       mockRemove.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('DELETE', '/api/plugins/my-plugin?namespace=custom-ns', undefined, 'token');
       expect(res.status).toBe(200);
-      expect(mockRemove).toHaveBeenCalledWith('my-plugin', 'token', false, 'custom-ns');
+      expect(mockRemove).toHaveBeenCalledWith('my-plugin', 'token', false, 'custom-ns', undefined);
     });
 
     it('returns 400 for invalid namespace query param', async () => {
@@ -217,7 +217,7 @@ describe('lifecycle routes', () => {
       mockEnable.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('POST', '/api/plugins/my-plugin/enable', {}, 'token');
       expect(res.status).toBe(200);
-      expect(mockEnable).toHaveBeenCalledWith('my-plugin', 'token');
+      expect(mockEnable).toHaveBeenCalledWith('my-plugin', 'token', undefined);
     });
 
     it('returns 401 without token', async () => {
@@ -243,7 +243,7 @@ describe('lifecycle routes', () => {
       mockDisable.mockResolvedValue({ success: true, message: 'ok', steps: [] });
       const res = await req('POST', '/api/plugins/my-plugin/disable', {}, 'token');
       expect(res.status).toBe(200);
-      expect(mockDisable).toHaveBeenCalledWith('my-plugin', 'token');
+      expect(mockDisable).toHaveBeenCalledWith('my-plugin', 'token', undefined);
     });
 
     it('returns 401 without token', async () => {

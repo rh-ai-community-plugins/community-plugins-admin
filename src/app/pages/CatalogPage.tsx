@@ -446,6 +446,7 @@ const CatalogPage: React.FC = () => {
         installedNames={installedNames}
         installedLoading={installedLoading}
         helmInstalledNames={helmInstalledNames}
+        installedVersion={selectedPlugin ? helmVersionMap.get(selectedPlugin) : undefined}
         lifecycle={lifecycle}
         onClose={() => setSelectedPlugin(null)}
         onLifecycleComplete={() => { refetch(); installedRefetch(); helmRefetch(); }}

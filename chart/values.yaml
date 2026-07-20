@@ -77,6 +77,9 @@ bff:
   # RBAC for plugin lifecycle operations (install, upgrade, remove)
   rbac:
     create: true
+  # Dashboard deployment coordinates (RHOAI defaults; use "opendatahub" / "odh-dashboard" for ODH)
+  dashboardNamespace: "redhat-ods-applications"
+  dashboardDeployment: "rhods-dashboard"
   # Charter registry URL (source of available plugins)
   charterRegistryUrl: "https://raw.githubusercontent.com/rh-ai-community-plugins/charter/dev/plugins.yaml"
   # Cache TTL settings (milliseconds)

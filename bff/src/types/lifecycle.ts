@@ -20,8 +20,32 @@ export interface LifecycleResponse {
   steps: LifecycleStep[];
 }
 
-export interface ModuleFederationEntry {
-  scope: string;
-  module: string;
+export type LifecycleProgressCallback = (steps: LifecycleStep[]) => void;
+
+export interface MFServiceRef {
+  name: string;
+  namespace: string;
+  port: number;
+}
+
+export interface MFBackend {
   remoteEntry: string;
+  authorize?: boolean;
+  tls?: boolean;
+  service: MFServiceRef;
+}
+
+export interface MFProxyService {
+  path: string;
+  pathRewrite: string;
+  authorize?: boolean;
+  tls?: boolean;
+  service: MFServiceRef;
+}
+
+export interface ModuleFederationEntry {
+  name: string;
+  backend?: MFBackend;
+  proxyService?: MFProxyService[];
+  [key: string]: unknown;
 }

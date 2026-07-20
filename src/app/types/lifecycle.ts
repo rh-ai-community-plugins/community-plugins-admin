@@ -12,3 +12,7 @@ export interface LifecycleResponse {
 }
 
 export type LifecycleOperation = 'install' | 'upgrade' | 'remove' | 'enable' | 'disable';
+
+export interface LifecycleProgressEvent {
+  steps: LifecycleStep[];
+}

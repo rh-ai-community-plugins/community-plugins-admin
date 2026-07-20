@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Modal,
   ModalBody,
@@ -10,6 +10,8 @@ import {
   ProgressStepper,
 } from '@patternfly/react-core';
 import { LifecycleStep, LifecycleOperation } from '~/app/types/lifecycle';
+import { useDashboardStatus } from '~/app/contexts/DashboardStatusContext';
+import DashboardRestartBanner from '~/app/components/DashboardRestartBanner';
 
 interface LifecycleProgressModalProps {
   isOpen: boolean;
@@ -49,6 +51,8 @@ function stepVariant(status: LifecycleStep['status']): 'success' | 'info' | 'pen
   }
 }
 
+const CONFIG_CHANGING_OPS = new Set<LifecycleOperation>(['install', 'remove', 'enable', 'disable']);
+
 const LifecycleProgressModal: React.FC<LifecycleProgressModalProps> = ({
   isOpen,
   operation,
@@ -57,6 +61,15 @@ const LifecycleProgressModal: React.FC<LifecycleProgressModalProps> = ({
   message,
   onClose,
 }) => {
+  const { startMonitoring } = useDashboardStatus();
+  const triggersRestart = operation !== null && CONFIG_CHANGING_OPS.has(operation);
+
+  useEffect(() => {
+    if (success === true && triggersRestart && operation) {
+      startMonitoring(operation);
+    }
+  }, [success, triggersRestart, operation, startMonitoring]);
+
   if (!operation) return null;
 
   const inProgress = success === null;
@@ -109,6 +122,9 @@ const LifecycleProgressModal: React.FC<LifecycleProgressModalProps> = ({
             isInline
             className="pf-v6-u-mt-md"
           />
+        )}
+        {success === true && triggersRestart && (
+          <DashboardRestartBanner className="pf-v6-u-mt-md" />
         )}
       </ModalBody>
       <ModalFooter>

@@ -7,6 +7,7 @@ import {
   disablePlugin,
 } from '../services/lifecycleService';
 import { validateHelmValues, helmListAllNamespaces } from '../services/helmService';
+import { LifecycleResponse, LifecycleProgressCallback } from '../types/lifecycle';
 
 const router = Router();
 
@@ -35,6 +36,7 @@ const PROTECTED_NAMESPACES = new Set([
   'openshift', 'openshift-operators', 'openshift-config',
   'openshift-monitoring', 'openshift-infra', 'openshift-apiserver',
   'redhat-ods-applications', 'redhat-ods-monitoring', 'redhat-ods-operator',
+  'opendatahub',
 ]);
 
 function extractToken(req: Request): string | null {
@@ -50,7 +52,51 @@ function validatePluginName(name: string): string | null {
   return null;
 }
 
-router.post('/:name/install', async (req: Request, res: Response) => {
+function sendSSE(
+  req: Request,
+  res: Response,
+  serviceFn: (onProgress?: LifecycleProgressCallback) => Promise<LifecycleResponse>,
+): void {
+  const wantsSSE = req.headers.accept?.includes('text/event-stream');
+
+  if (!wantsSSE) {
+    serviceFn().then((result) => {
+      res.status(result.success ? 200 : 500).json(result);
+    }).catch(() => {
+      res.status(500).json({ success: false, message: 'Operation failed', steps: [] });
+    });
+    return;
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+
+  const onProgress: LifecycleProgressCallback = (steps) => {
+    const data = JSON.stringify({ steps: steps.map(s => ({ ...s })) });
+    res.write(`event: progress\ndata: ${data}\n\n`);
+  };
+
+  serviceFn(onProgress)
+    .then((result) => {
+      res.write(`event: complete\ndata: ${JSON.stringify(result)}\n\n`);
+      res.end();
+    })
+    .catch(() => {
+      const fallback: LifecycleResponse = {
+        success: false,
+        message: 'Operation failed',
+        steps: [],
+      };
+      res.write(`event: complete\ndata: ${JSON.stringify(fallback)}\n\n`);
+      res.end();
+    });
+}
+
+router.post('/:name/install', (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: 'Authorization token required' });
@@ -85,20 +131,12 @@ router.post('/:name/install', async (req: Request, res: Response) => {
     }
   }
 
-  try {
-    const result = await installPlugin(req.params.name, token, namespace, values);
-    res.status(result.success ? 200 : 500).json(result);
-  } catch (err) {
-    console.error(`Install failed for ${req.params.name}`);
-    res.status(500).json({
-      success: false,
-      message: 'Plugin installation failed',
-      steps: [],
-    });
-  }
+  sendSSE(req, res, (onProgress) =>
+    installPlugin(req.params.name, token, namespace, values, onProgress),
+  );
 });
 
-router.post('/:name/upgrade', async (req: Request, res: Response) => {
+router.post('/:name/upgrade', (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: 'Authorization token required' });
@@ -133,20 +171,12 @@ router.post('/:name/upgrade', async (req: Request, res: Response) => {
     }
   }
 
-  try {
-    const result = await upgradePlugin(req.params.name, token, namespace, values);
-    res.status(result.success ? 200 : 500).json(result);
-  } catch (err) {
-    console.error(`Upgrade failed for ${req.params.name}`);
-    res.status(500).json({
-      success: false,
-      message: 'Plugin upgrade failed',
-      steps: [],
-    });
-  }
+  sendSSE(req, res, (onProgress) =>
+    upgradePlugin(req.params.name, token, namespace, values, onProgress),
+  );
 });
 
-router.delete('/:name', async (req: Request, res: Response) => {
+router.delete('/:name', (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: 'Authorization token required' });
@@ -173,20 +203,12 @@ router.delete('/:name', async (req: Request, res: Response) => {
     }
   }
 
-  try {
-    const result = await removePlugin(req.params.name, token, deleteNamespace, namespace);
-    res.status(result.success ? 200 : 500).json(result);
-  } catch (err) {
-    console.error(`Remove failed for ${req.params.name}`);
-    res.status(500).json({
-      success: false,
-      message: 'Plugin removal failed',
-      steps: [],
-    });
-  }
+  sendSSE(req, res, (onProgress) =>
+    removePlugin(req.params.name, token, deleteNamespace, namespace, onProgress),
+  );
 });
 
-router.post('/:name/enable', async (req: Request, res: Response) => {
+router.post('/:name/enable', (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: 'Authorization token required' });
@@ -199,20 +221,12 @@ router.post('/:name/enable', async (req: Request, res: Response) => {
     return;
   }
 
-  try {
-    const result = await enablePlugin(req.params.name, token);
-    res.status(result.success ? 200 : 500).json(result);
-  } catch (err) {
-    console.error(`Enable failed for ${req.params.name}`);
-    res.status(500).json({
-      success: false,
-      message: 'Plugin enable failed',
-      steps: [],
-    });
-  }
+  sendSSE(req, res, (onProgress) =>
+    enablePlugin(req.params.name, token, onProgress),
+  );
 });
 
-router.post('/:name/disable', async (req: Request, res: Response) => {
+router.post('/:name/disable', (req: Request, res: Response) => {
   const token = extractToken(req);
   if (!token) {
     res.status(401).json({ error: 'Authorization token required' });
@@ -225,17 +239,9 @@ router.post('/:name/disable', async (req: Request, res: Response) => {
     return;
   }
 
-  try {
-    const result = await disablePlugin(req.params.name, token);
-    res.status(result.success ? 200 : 500).json(result);
-  } catch (err) {
-    console.error(`Disable failed for ${req.params.name}`);
-    res.status(500).json({
-      success: false,
-      message: 'Plugin disable failed',
-      steps: [],
-    });
-  }
+  sendSSE(req, res, (onProgress) =>
+    disablePlugin(req.params.name, token, onProgress),
+  );
 });
 
 export default router;

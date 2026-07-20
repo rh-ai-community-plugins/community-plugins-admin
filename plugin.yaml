@@ -9,8 +9,8 @@ version: 0.1.0
 
 # --- Maintainer (required) ---
 maintainer:                          # [PLUGIN-SPECIFIC]
-  name: Your Name                    # [PLUGIN-SPECIFIC] replace with maintainer's name
-  github: your-github-handle        # [PLUGIN-SPECIFIC] replace with maintainer's GitHub handle
+  name: Guillaume Moutier                    # [PLUGIN-SPECIFIC] replace with maintainer's name
+  github: guimou        # [PLUGIN-SPECIFIC] replace with maintainer's GitHub handle
 
 # --- RHOAI compatibility (required) ---
 rhoai_compatibility:                 # [PLUGIN-SPECIFIC]
@@ -21,11 +21,11 @@ rhoai_compatibility:                 # [PLUGIN-SPECIFIC]
 deployment_model: cluster-shared     # per-project | cluster-shared | both
 
 image:                               # [PLUGIN-SPECIFIC]
-  repository: quay.io/OWNER/community-plugins-admin
+  repository: quay.io/rh-ai-community-plugins/community-plugins-admin
   tag: "0.1.0"
 
 bff_image:                           # [PLUGIN-SPECIFIC] (optional — only if using BFF pattern)
-  repository: quay.io/OWNER/community-plugins-admin-bff
+  repository: quay.io/rh-ai-community-plugins/community-plugins-admin-bff
   tag: "0.1.0"
 
 # --- Installation (required) ---
@@ -33,7 +33,7 @@ install:
   method: automatic                  # automatic | assisted | manual
   helm:
     chart_path: chart/
-    registry: oci://quay.io/OWNER/community-plugins-admin-chart  # [PLUGIN-SPECIFIC]
+    registry: oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart  # [PLUGIN-SPECIFIC]
   prerequisites: []
   instructions: https://github.com/rh-ai-community-plugins/community-plugins-admin/blob/main/docs/deployment  # [PLUGIN-SPECIFIC]
 
