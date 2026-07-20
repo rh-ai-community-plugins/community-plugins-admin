@@ -99,6 +99,7 @@ bff/
     routes/
       catalog.ts            # GET /api/catalog, GET /api/catalog/:name
       lifecycle.ts          # GET /api/plugins, POST install/upgrade/enable/disable, DELETE remove
+      dashboard.ts          # GET /api/dashboard/status — dashboard rollout state
     services/
       charterClient.ts      # Fetches plugins.yaml from the charter registry (GitHub)
       pluginMetadataClient.ts # Fetches plugin.yaml from individual plugin repos
@@ -170,6 +171,20 @@ Adds the plugin's Module Federation entry to `MODULE_FEDERATION_CONFIG`, making 
 #### `POST /api/plugins/:name/disable`
 
 Removes the plugin's entry from `MODULE_FEDERATION_CONFIG`. The plugin stays deployed but is hidden from the dashboard.
+
+#### `GET /api/config`
+
+Returns the BFF's dashboard configuration: namespace and deployment name. Used by the frontend to know which deployment to monitor.
+
+#### `GET /api/dashboard/status`
+
+Reads the `rhods-dashboard` Deployment and derives the rollout state. Returns:
+
+- `rolloutStatus` — `progressing`, `complete`, or `error`
+- `replicas`, `readyReplicas`, `updatedReplicas`, `availableReplicas` — pod counts
+- `message` — human-readable status description (e.g., "Dashboard pods are being updated (2/3)")
+
+The frontend polls this endpoint after lifecycle operations to track the dashboard restart triggered by `MODULE_FEDERATION_CONFIG` changes.
 
 ### Services
 

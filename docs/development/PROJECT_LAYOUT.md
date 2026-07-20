@@ -19,10 +19,13 @@ Directory structure of the plugin.
 │       │   ├── CommunityPluginsAdminNavIcon.tsx  # Plugin's sidebar icon
 │       │   ├── PluginDetailModal.tsx #    Plugin detail modal with metadata and lifecycle actions
 │       │   ├── ConfirmRemoveModal.tsx #   Confirmation dialog for plugin removal (name re-typing)
-│       │   └── LifecycleProgressModal.tsx # Step-by-step progress for lifecycle operations
+│       │   ├── LifecycleProgressModal.tsx # Step-by-step progress for lifecycle operations
+│       │   └── DashboardRestartBanner.tsx # Dashboard rollout status after lifecycle ops
 │       ├── pages/                  #   One file per page/route
 │       │   ├── CatalogPage.tsx     #     Browse available plugins (card grid, search, filters)
 │       │   └── InstalledPage.tsx    #     View/manage installed plugins (table, admin actions)
+│       ├── contexts/               #   React contexts
+│       │   └── DashboardStatusContext.tsx  # Dashboard rollout monitoring provider
 │       ├── hooks/                  #   Data-fetching and state hooks
 │       │   ├── useCurrentUser.ts   #     Dashboard API — user info and admin detection
 │       │   ├── useProjects.ts      #     K8s API — accessible projects
@@ -34,7 +37,8 @@ Directory structure of the plugin.
 │       │   ├── useHelmReleasedPlugins.ts   # BFF — all Helm releases with version map
 │       │   ├── useInstalledPlugins.ts      # Merged installed state with health status
 │       │   ├── usePluginDetail.ts  #     BFF — single plugin metadata + installed state
-│       │   └── usePluginLifecycle.ts #   BFF — install/upgrade/remove/enable/disable operations
+│       │   ├── usePluginLifecycle.ts #   BFF — install/upgrade/remove/enable/disable operations
+│       │   └── useDashboardRollout.ts #  BFF — polls dashboard rollout status after lifecycle ops
 │       ├── types/                  #   TypeScript type definitions
 │       │   ├── catalog.ts          #     CatalogPlugin type (BFF response)
 │       │   ├── installed.ts        #     InstalledPlugin, PluginHealthStatus types
@@ -54,7 +58,8 @@ Directory structure of the plugin.
 │       ├── server.ts                #   HTTP server entry (listen + K8s config logging)
 │       ├── routes/
 │       │   ├── catalog.ts           #     GET /api/catalog, GET /api/catalog/:name
-│       │   └── lifecycle.ts         #     Plugin lifecycle endpoints (install/upgrade/remove/enable/disable)
+│       │   ├── lifecycle.ts         #     Plugin lifecycle endpoints (install/upgrade/remove/enable/disable)
+│       │   └── dashboard.ts         #     GET /api/dashboard/status — rollout state
 │       ├── services/
 │       │   ├── charterClient.ts     #     Charter registry fetcher with caching
 │       │   ├── pluginMetadataClient.ts  # Plugin metadata fetcher with per-plugin cache

@@ -274,26 +274,40 @@ Key values in `chart/values.yaml`:
 
 | Parameter | Default | Description |
 |---|---|---|
+| `nameOverride` | `"community-plugins-admin"` | Override `.Chart.Name` for resource naming |
+| `fullnameOverride` | `""` | Override fully qualified resource names |
 | `image.repository` | `quay.io/OWNER/community-plugins-admin` | Frontend container image |
 | `image.tag` | `""` (defaults to appVersion) | Frontend image tag |
 | `image.pullPolicy` | `IfNotPresent` | Image pull policy |
 | `replicaCount` | `1` | Frontend replicas |
+| `serviceAccount.create` | `true` | Create a ServiceAccount for the frontend |
+| `serviceAccount.name` | `""` | Use a pre-existing frontend ServiceAccount |
 | `service.type` | `ClusterIP` | Frontend Service type |
 | `service.port` | `8080` | Frontend Service port |
+| `ingress.enabled` | `true` | Enable Ingress for the frontend |
+| `ingress.className` | `nginx` | Ingress class name |
 | `resources.requests.cpu` | `50m` | Frontend CPU request |
 | `resources.requests.memory` | `64Mi` | Frontend memory request |
 | `resources.limits.cpu` | `100m` | Frontend CPU limit |
 | `resources.limits.memory` | `128Mi` | Frontend memory limit |
+| `securityContext.runAsNonRoot` | `true` | Pod security context |
+| `nodeSelector` | `{}` | Node selector for pod scheduling |
+| `tolerations` | `[]` | Tolerations for pod scheduling |
+| `affinity` | `{}` | Affinity rules for pod scheduling |
 | `bff.enabled` | `true` | Deploy the BFF service |
 | `bff.image.repository` | `quay.io/OWNER/community-plugins-admin-bff` | BFF container image |
 | `bff.image.tag` | `""` (defaults to appVersion) | BFF image tag |
+| `bff.replicaCount` | `1` | BFF replicas |
 | `bff.service.port` | `3000` | BFF Service port |
 | `bff.resources.requests.cpu` | `100m` | BFF CPU request |
 | `bff.resources.requests.memory` | `128Mi` | BFF memory request |
 | `bff.resources.limits.cpu` | `200m` | BFF CPU limit |
 | `bff.resources.limits.memory` | `256Mi` | BFF memory limit |
-| `bff.serviceAccount.name` | `""` | Use a pre-existing ServiceAccount (set `bff.serviceAccount.create=false`) |
+| `bff.serviceAccount.create` | `true` | Create a ServiceAccount for the BFF |
+| `bff.serviceAccount.name` | `""` | Use a pre-existing BFF ServiceAccount |
 | `bff.rbac.create` | `true` | Create ClusterRole and ClusterRoleBinding for the BFF |
+| `bff.dashboardNamespace` | `"redhat-ods-applications"` | Namespace of the RHOAI dashboard deployment |
+| `bff.dashboardDeployment` | `"rhods-dashboard"` | Name of the RHOAI dashboard Deployment |
 | `bff.charterRegistryUrl` | `https://raw.githubusercontent.com/.../plugins.yaml` | Charter registry URL |
 | `bff.cache.charterTtlMs` | `300000` | Charter registry cache TTL (ms) |
 | `bff.cache.pluginTtlMs` | `300000` | Plugin metadata cache TTL (ms) |

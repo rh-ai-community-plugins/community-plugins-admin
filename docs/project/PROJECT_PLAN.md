@@ -83,7 +83,9 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ## Phases
 
-### Phase 1: Foundation & Project Restructure
+> **Status**: All eight phases are complete. The sections below describe the original plan and deliverables for each phase.
+
+### Phase 1: Foundation & Project Restructure ✓
 
 **Goal**: Remove seed demo pages, establish the new navigation/routing structure, and set up shared state management.
 
@@ -122,7 +124,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ---
 
-### Phase 2: BFF — Plugin Metadata Aggregation
+### Phase 2: BFF — Plugin Metadata Aggregation ✓
 
 **Goal**: Build the BFF endpoints that fetch, aggregate, and cache plugin metadata from the charter registry and individual plugin repos.
 
@@ -159,7 +161,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ---
 
-### Phase 3: Catalog Page
+### Phase 3: Catalog Page ✓
 
 **Goal**: Build the frontend catalog browsing experience showing all available community plugins.
 
@@ -195,7 +197,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ---
 
-### Phase 4: Installed Plugins Page
+### Phase 4: Installed Plugins Page ✓
 
 **Goal**: Show the list of currently installed plugins with their status and management actions.
 
@@ -227,7 +229,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ---
 
-### Phase 5: Plugin Detail Modal
+### Phase 5: Plugin Detail Modal ✓
 
 **Goal**: Show full plugin information in a modal with install/upgrade/remove actions. The modal opens from either the Catalog or Installed page, preserving the parent page's state.
 
@@ -265,7 +267,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ---
 
-### Phase 6: Plugin Install / Upgrade / Remove
+### Phase 6: Plugin Install / Upgrade / Remove ✓
 
 **Goal**: Implement the actual plugin lifecycle operations triggered from the UI.
 
@@ -325,7 +327,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ---
 
-### Phase 7: Helm Chart & Deployment Updates
+### Phase 7: Helm Chart & Deployment Updates ✓
 
 **Goal**: Update the Helm chart and CI/CD for the admin plugin's own deployment and RBAC needs.
 
@@ -361,7 +363,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 
 ---
 
-### Phase 8: Testing, Polish & Documentation
+### Phase 8: Testing, Polish & Documentation ✓
 
 **Goal**: Comprehensive testing, UX polish, and documentation updates.
 
@@ -427,18 +429,22 @@ Phase 2 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → Phase 8
 
 ## Open Questions & Future Considerations
 
-1. **Helm execution from BFF**: The BFF needs to run Helm operations. Should it shell out to the `helm` CLI (simpler, requires Helm binary in the container) or use a Helm Go library via a sidecar/separate service? Alternatively, should it create K8s resources directly instead of using Helm?
+### Resolved
 
-2. **MODULE_FEDERATION_CONFIG management**: Currently stored as an env var on the dashboard deployment. Modifying it triggers a rolling restart. Should this plugin manage it via ConfigMap instead for cleaner updates? Does the dashboard support ConfigMap-based federation config?
+1. **Helm execution from BFF**: *Resolved* — the BFF shells out to the `helm` CLI. The Helm binary is included in the BFF container image with SHA256 checksum verification.
 
-3. **Charter registry branch**: Currently reading from the `dev` branch. Should this be configurable (e.g., `main` for production, `dev` for testing)?
+2. **MODULE_FEDERATION_CONFIG management**: *Resolved* — managed as an env var on the dashboard Deployment. The BFF uses JSON Patch with optimistic concurrency control (409 retry) to safely modify it. Modifying the env var triggers an automatic rolling restart of dashboard pods.
 
-4. **Plugin version resolution**: When a plugin's `plugin.yaml` declares compatibility with specific RHOAI versions, should the admin plugin enforce this and prevent installing incompatible plugins?
+3. **Charter registry branch**: *Resolved* — the registry URL is fully configurable via the `CHARTER_REGISTRY_URL` env var (local dev) or `bff.charterRegistryUrl` Helm value (production).
 
-5. **Self-management**: Can this plugin manage (upgrade/remove) itself? This creates a bootstrapping problem — removing the admin plugin removes the ability to reinstall it without manual `MODULE_FEDERATION_CONFIG` editing.
+### Open
 
-6. **Offline / air-gapped clusters**: The BFF fetches metadata from GitHub. How should the plugin behave in disconnected environments? Should it support a local/mirrored registry?
+1. **Plugin version resolution**: When a plugin's `plugin.yaml` declares compatibility with specific RHOAI versions, should the admin plugin enforce this and prevent installing incompatible plugins?
 
-7. **Plugin dependencies**: Some plugins may depend on others (e.g., a plugin that requires a shared backend). Should the install flow handle dependency resolution?
+2. **Self-management**: Can this plugin manage (upgrade/remove) itself? This creates a bootstrapping problem — removing the admin plugin removes the ability to reinstall it without manual `MODULE_FEDERATION_CONFIG` editing.
 
-8. **Audit trail**: Should plugin install/upgrade/remove operations be logged (e.g., as K8s Events) for auditability?
+3. **Offline / air-gapped clusters**: The BFF fetches metadata from GitHub. How should the plugin behave in disconnected environments? Should it support a local/mirrored registry?
+
+4. **Plugin dependencies**: Some plugins may depend on others (e.g., a plugin that requires a shared backend). Should the install flow handle dependency resolution?
+
+5. **Audit trail**: Should plugin install/upgrade/remove operations be logged (e.g., as K8s Events) for auditability?

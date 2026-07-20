@@ -114,10 +114,10 @@ You should now have **three processes** running:
 | Process | Port | Purpose |
 |---|---|---|
 | Dashboard container | 8080 | Host application, proxies to plugin and BFF |
-| BFF service | 3000 | Plugin backend (namespace summary aggregation) |
+| BFF service | 3000 | Plugin backend (catalog aggregation, lifecycle operations) |
 | Plugin dev server | 9500 | Plugin frontend (webpack dev server with HMR) |
 
-Open the dashboard URL in your browser. You should see the RHOAI Dashboard with your plugin loaded in the sidebar, including the Namespace Summary page under the Community Plugins Admin section.
+Open the dashboard URL in your browser. You should see the RHOAI Dashboard with your plugin loaded in the sidebar, with the Catalog and Installed pages under the Community Plugins Admin section.
 
 ### How it works
 
@@ -357,14 +357,14 @@ This project defaults to port **9500**. The port only matters if you run multipl
 - Ensure the plugin dev server is running (not just built)
 - Try a hard refresh (Ctrl+Shift+R) if the module cache is stale
 
-### BFF: "Failed to load namespace summary" with HTML parse error
+### BFF: HTML returned instead of JSON
 
 The frontend receives HTML instead of JSON. This means the request to `/community-plugins-admin/api/*` is not being proxied to the BFF and is hitting the SPA fallback instead.
 
 - Ensure your `MODULE_FEDERATION_CONFIG` includes the `proxyService` block (see the config examples above)
 - Restart the dashboard after changing `MODULE_FEDERATION_CONFIG`
 
-### BFF: "Failed to fetch namespace summary: 502"
+### BFF: 502 errors from API requests
 
 The dashboard is correctly proxying to the BFF, but the BFF is returning an error.
 

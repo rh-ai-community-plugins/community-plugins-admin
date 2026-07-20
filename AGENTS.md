@@ -74,10 +74,15 @@ A `PluginDetailModal` (`src/app/components/PluginDetailModal.tsx`) opens from ei
 - **`PluginDetailModal.tsx`** — Full plugin detail overlay with metadata sections, action buttons (admin-only), and lifecycle integration.
 - **`ConfirmRemoveModal.tsx`** — Confirmation dialog requiring the user to type the plugin name before removal.
 - **`LifecycleProgressModal.tsx`** — Step-by-step progress display for install/upgrade/remove operations using PatternFly `ProgressStepper`.
+- **`DashboardRestartBanner.tsx`** — Monitors dashboard pod rollout after lifecycle operations and displays real-time status (progressing, complete, error) with auto-dismiss.
+
+### Contexts
+
+- `src/app/contexts/DashboardStatusContext.tsx` — `DashboardStatusProvider` and `useDashboardStatus` hook. Wraps the app to provide dashboard rollout monitoring state (start/stop monitoring, rollout status, error count) consumed by `DashboardRestartBanner`.
 
 ### Custom Hooks
 
-Eleven hooks in `src/app/hooks/` provide data fetching, state management, and API integration:
+Twelve hooks in `src/app/hooks/` provide data fetching, state management, and API integration:
 
 - `useCurrentUser` — Fetches authenticated user info from `/api/status`.
 - `useProjects` — Fetches accessible projects from the OpenShift projects API.
@@ -90,6 +95,7 @@ Eleven hooks in `src/app/hooks/` provide data fetching, state management, and AP
 - `useInstalledPlugins` — Merges installed plugin names, Helm releases, and catalog metadata to produce a unified installed plugins list with health status.
 - `usePluginDetail` — Fetches full metadata for a single plugin from the BFF (`GET /api/catalog/:name`) and resolves installed state.
 - `usePluginLifecycle` — Provides install/upgrade/remove/enable/disable operations that call BFF lifecycle endpoints. Tracks operation progress, loading, and result state.
+- `useDashboardRollout` — Polls `GET /api/dashboard/status` to track dashboard deployment rollout progress after lifecycle operations. Returns rollout state, loading, and error count.
 
 ### Frontend Types
 
@@ -110,6 +116,7 @@ The BFF app is defined in `bff/src/app.ts` (Express middleware and routes) and s
 **Endpoints:**
 
 - `GET /api/health` — Liveness probe.
+- `GET /api/config` — Exposes dashboard namespace and deployment name configuration.
 - `GET /api/catalog` — Merged list of all community plugins (registry entry + resolved metadata). Supports `?refresh=true` to force cache invalidation.
 - `GET /api/catalog/:name` — Full metadata for a single plugin.
 - `GET /api/plugins` — List all Helm-deployed plugin releases across namespaces.
@@ -118,6 +125,7 @@ The BFF app is defined in `bff/src/app.ts` (Express middleware and routes) and s
 - `DELETE /api/plugins/:name` — Remove a plugin (Helm uninstall + config cleanup). Supports `?deleteNamespace=true` and `?namespace=<string>` query parameters.
 - `POST /api/plugins/:name/enable` — Add a plugin's Module Federation entry to `MODULE_FEDERATION_CONFIG`.
 - `POST /api/plugins/:name/disable` — Remove a plugin's entry from `MODULE_FEDERATION_CONFIG` (plugin stays deployed but hidden).
+- `GET /api/dashboard/status` — Reads the dashboard deployment and derives rollout state (`progressing`, `complete`, `error`) with pod counts.
 
 All lifecycle endpoints require a Bearer token (forwarded from the dashboard) and validate the plugin name against `^[a-z][a-z0-9-]{0,62}[a-z0-9]$`.
 

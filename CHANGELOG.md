@@ -21,7 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Dashboard config service** — reads and modifies `MODULE_FEDERATION_CONFIG` on the dashboard deployment with optimistic concurrency control (409 retry).
 - **Helm service** — executes Helm CLI operations using temporary kubeconfig files with value validation and namespace discovery.
 - **Lifecycle service** — orchestrates install/upgrade/remove/enable/disable by coordinating chart resolution, Helm execution, and config updates.
-- **Frontend hooks** — `useCatalog`, `useInstalledPlugins`, `useInstalledPluginNames`, `useHelmReleasedPlugins`, `usePluginDetail`, `usePluginLifecycle` for data fetching and lifecycle operations.
+- **Dashboard restart banner** — monitors dashboard pod rollout after lifecycle operations (install, upgrade, remove, enable, disable) and displays real-time status with auto-dismiss on completion.
+- **BFF dashboard status endpoint** — `GET /api/dashboard/status` reads the dashboard deployment rollout state and derives progress (`progressing`, `complete`, `error`).
+- **BFF config endpoint** — `GET /api/config` exposes dashboard namespace and deployment name configuration.
+- **Frontend hooks** — `useCatalog`, `useInstalledPlugins`, `useInstalledPluginNames`, `useHelmReleasedPlugins`, `usePluginDetail`, `usePluginLifecycle`, `useDashboardRollout` for data fetching, lifecycle operations, and dashboard status polling.
 - **Helm chart RBAC** — ClusterRole and ClusterRoleBinding for the BFF ServiceAccount with permissions for plugin lifecycle management, including RBAC safety guard preventing orphaned bindings.
 - **CI/CD** — GitHub Actions workflows for tests, linting (frontend + BFF + Helm chart), and container image builds.
 - **Error boundary** — catches rendering errors with meaningful fallback UI.
