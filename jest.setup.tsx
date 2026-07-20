@@ -3,6 +3,16 @@ import { act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { TextEncoder, TextDecoder } from 'util';
 
+beforeAll(() => {
+  jest.spyOn(console, 'log').mockImplementation(() => {});
+  jest.spyOn(console, 'warn').mockImplementation(() => {});
+  jest.spyOn(console, 'error').mockImplementation(() => {});
+});
+
+afterAll(() => {
+  jest.restoreAllMocks();
+});
+
 const originalAdvanceTimersByTime = jest.advanceTimersByTime.bind(jest);
 Object.defineProperty(jest, 'advanceTimersByTime', {
   configurable: true,
