@@ -32,6 +32,21 @@ To run a single test file:
 npx jest src/app/hooks/__tests__/useCurrentUser.spec.ts
 ```
 
+### Makefile
+
+A top-level `Makefile` wraps all common operations. Run `make help` to see all targets and variables. Key targets:
+
+```bash
+make validate                    # typecheck + lint + test (frontend + BFF)
+make build                       # Production build (frontend + BFF)
+make dev                         # Start frontend dev server (port 9500)
+make dev-bff                     # Start BFF dev server (port 3000)
+make image-push VERSION=0.1.1    # Build and push container images with explicit version
+make image-scan                  # Build and scan images for vulnerabilities
+make chart-push                  # Package and push Helm chart to OCI registry
+make clean                       # Remove build artifacts
+```
+
 ### BFF Service Commands
 
 ```bash

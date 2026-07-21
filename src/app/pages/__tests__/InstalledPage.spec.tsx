@@ -155,6 +155,19 @@ describe('InstalledPage', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
+  it('shows access restricted message when non-admin user gets an error', () => {
+    mockUseCurrentUser.mockReturnValue(nonAdminUser);
+    mockUseInstalledPlugins.mockReturnValue({
+      ...defaultReturn,
+      error: 'Failed to fetch dashboard deployment: 403',
+      plugins: [],
+    });
+    render(<InstalledPage />);
+    expect(screen.getByText('Access restricted')).toBeInTheDocument();
+    expect(screen.getByText("Sorry, you don't have access to the installed plugins list.")).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load installed plugins')).not.toBeInTheDocument();
+  });
+
   it('shows empty state when no plugins are installed', () => {
     mockUseInstalledPlugins.mockReturnValue({
       ...defaultReturn,
