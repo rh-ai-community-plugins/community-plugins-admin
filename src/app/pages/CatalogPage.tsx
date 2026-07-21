@@ -402,7 +402,7 @@ const CatalogPage: React.FC = () => {
         <Title headingLevel="h1" className="pf-v6-u-mb-md">
           Catalog
         </Title>
-        {(installedError || helmError) && (
+        {isAdmin && (installedError || helmError) && (
           <Alert
             variant="warning"
             title="Unable to determine installed plugin status"

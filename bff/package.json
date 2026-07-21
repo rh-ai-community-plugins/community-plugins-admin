@@ -1,6 +1,6 @@
 {
   "name": "community-plugins-admin-bff",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "BFF service for the Community Plugins Admin RHOAI dashboard plugin",
   "main": "dist/server.js",
   "scripts": {
@@ -35,7 +35,9 @@
     "testMatch": [
       "**/__tests__/**/*.test.ts"
     ],
-    "setupFilesAfterEnv": ["<rootDir>/jest.setup.ts"],
+    "setupFilesAfterEnv": [
+      "<rootDir>/jest.setup.ts"
+    ],
     "collectCoverageFrom": [
       "src/**/*.ts",
       "!src/**/*.d.ts"
