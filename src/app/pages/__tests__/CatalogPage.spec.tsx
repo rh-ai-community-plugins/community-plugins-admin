@@ -316,7 +316,8 @@ describe('CatalogPage', () => {
     expect(refetch).toHaveBeenCalledTimes(1);
   });
 
-  it('shows warning alert when installedError is set', () => {
+  it('shows warning alert when installedError is set and user is admin', () => {
+    mockUseCurrentUser.mockReturnValue({ user: { currentContext: 'ctx', currentUser: 'admin', namespace: 'default', userName: 'admin', userID: '1', clusterID: 'c1', clusterBranding: '', isAdmin: true, isAllowed: true, serverURL: 'https://api.cluster.local:6443' }, loading: false, error: null });
     mockUseInstalledPluginNames.mockReturnValue({
       ...defaultInstalledReturn,
       installedNames: new Set(),
@@ -329,7 +330,20 @@ describe('CatalogPage', () => {
     expect(screen.getByText('Install and disabled badges may be incomplete.')).toBeInTheDocument();
   });
 
-  it('shows warning alert when helmError is set', () => {
+  it('hides warning alert when installedError is set but user is not admin', () => {
+    mockUseInstalledPluginNames.mockReturnValue({
+      ...defaultInstalledReturn,
+      installedNames: new Set(),
+      error: 'Failed to fetch dashboard deployment: 403',
+    });
+    render(<CatalogPage />);
+    expect(
+      screen.queryByText('Unable to determine installed plugin status'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows warning alert when helmError is set and user is admin', () => {
+    mockUseCurrentUser.mockReturnValue({ user: { currentContext: 'ctx', currentUser: 'admin', namespace: 'default', userName: 'admin', userID: '1', clusterID: 'c1', clusterBranding: '', isAdmin: true, isAllowed: true, serverURL: 'https://api.cluster.local:6443' }, loading: false, error: null });
     mockUseHelmReleasedPlugins.mockReturnValue({
       ...defaultHelmReturn,
       helmInstalledNames: new Set(),

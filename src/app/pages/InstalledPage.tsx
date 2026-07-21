@@ -156,6 +156,17 @@ const InstalledPage: React.FC = () => {
   }
 
   if (error && plugins.length === 0) {
+    if (!isAdmin) {
+      return (
+        <PageSection>
+          <EmptyState titleText="Access restricted" headingLevel="h2">
+            <EmptyStateBody>
+              Sorry, you don&apos;t have access to the installed plugins list.
+            </EmptyStateBody>
+          </EmptyState>
+        </PageSection>
+      );
+    }
     return (
       <PageSection>
         <Alert variant="danger" title="Failed to load installed plugins">
