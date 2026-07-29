@@ -10,6 +10,7 @@ export interface PluginImage {
 
 export interface CatalogPluginInstall {
   method: 'automatic' | 'assisted' | 'manual';
+  namespace?: string;
   helm?: {
     chartPath?: string;
     registry?: string;

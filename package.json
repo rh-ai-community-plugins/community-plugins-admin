@@ -1,6 +1,6 @@
 {
   "name": "community-plugins-admin",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Discover, install, upgrade, and manage community plugins for the RHOAI Dashboard",
   "private": true,
   "_comment_name": "[PLUGIN-SPECIFIC] package name — change to {your-plugin}",

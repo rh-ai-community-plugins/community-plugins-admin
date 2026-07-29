@@ -17,5 +17,5 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ $saName }}
-    namespace: {{ .Release.Namespace }}
+    namespace: {{ include "community-plugins-admin.namespace" . }}
 {{- end }}

@@ -37,6 +37,7 @@ function markFailed(step: LifecycleStep, error: string): void {
 async function resolvePluginChart(pluginName: string): Promise<{
   chart: string;
   repo: string;
+  namespace?: string;
   mfName: string;
   hasBff: boolean;
   routePath: string;
@@ -61,12 +62,13 @@ async function resolvePluginChart(pluginName: string): Promise<{
     throw new Error(`Plugin "${pluginName}" has no Helm chart configured`);
   }
 
+  const ns = metadata.install.namespace;
   const mfName = metadata.remote?.spec?.name ?? metadata.remote?.spec?.scope ?? kebabToCamelScope(pluginName);
   const hasBff = !!metadata.bff_image;
   const routeSpec = metadata.remote?.spec?.paths?.find((p) => p.type === 'route');
   const routePath = routeSpec?.path ?? `/${pluginName}`;
 
-  return { chart, repo: regEntry.repo, mfName, hasBff, routePath };
+  return { chart, repo: regEntry.repo, namespace: ns, mfName, hasBff, routePath };
 }
 
 export async function installPlugin(
@@ -83,19 +85,20 @@ export async function installPlugin(
   ];
   onProgress?.(steps);
 
+  let pluginInfo: Awaited<ReturnType<typeof resolvePluginChart>> | undefined;
   try {
     markRunning(steps[0]);
     onProgress?.(steps);
-    const pluginInfo = await resolvePluginChart(pluginName);
+    pluginInfo = await resolvePluginChart(pluginName);
     markCompleted(steps[0]);
     onProgress?.(steps);
 
-    const ns = namespace ?? pluginName;
+    const ns = namespace ?? pluginInfo.namespace ?? pluginName;
     const releaseName = pluginName;
 
     markRunning(steps[1]);
     onProgress?.(steps);
-    await helmInstall(releaseName, pluginInfo.chart, ns, token, values);
+    await helmInstall(releaseName, pluginInfo.chart, ns, token, { namespace: ns, ...values });
     markCompleted(steps[1]);
     onProgress?.(steps);
 
@@ -132,7 +135,7 @@ export async function installPlugin(
 
     const helmStep = steps.find((s) => s.id === 'helm-install');
     if (helmStep && (helmStep.status === 'completed' || helmStep.status === 'failed')) {
-      const ns = namespace ?? pluginName;
+      const ns = namespace ?? pluginInfo?.namespace ?? pluginName;
       const cleanupStep = createStep('cleanup', 'Rolling back Helm release');
       steps.push(cleanupStep);
       markRunning(cleanupStep);
@@ -174,11 +177,11 @@ export async function upgradePlugin(
     markCompleted(steps[0]);
     onProgress?.(steps);
 
-    const ns = namespace ?? (await discoverReleaseNamespace(pluginName, token)) ?? pluginName;
+    const ns = namespace ?? (await discoverReleaseNamespace(pluginName, token)) ?? pluginInfo.namespace ?? pluginName;
 
     markRunning(steps[1]);
     onProgress?.(steps);
-    await helmUpgrade(pluginName, pluginInfo.chart, ns, token, values);
+    await helmUpgrade(pluginName, pluginInfo.chart, ns, token, { namespace: ns, ...values });
     markCompleted(steps[1]);
     onProgress?.(steps);
 
@@ -284,7 +287,7 @@ export async function enablePlugin(
     markRunning(steps[1]);
     onProgress?.(steps);
 
-    const ns = (await discoverReleaseNamespace(pluginName, token)) ?? pluginName;
+    const ns = (await discoverReleaseNamespace(pluginName, token)) ?? pluginInfo.namespace ?? pluginName;
     const mfEntry: ModuleFederationEntry = {
       name: pluginInfo.mfName,
       backend: {

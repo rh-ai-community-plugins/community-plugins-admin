@@ -49,8 +49,8 @@ Install directly from the OCI registry — no need to clone this repo:
 
 ```bash
 helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
-  --version 0.1.1 \
-  --namespace community-plugins-admin \
+  --version 0.1.2 \
+  --namespace cp-plugins-admin \
   --create-namespace
 ```
 
@@ -58,7 +58,7 @@ Or, if you have a local checkout of the repository:
 
 ```bash
 helm install community-plugins-admin chart/ \
-  --namespace community-plugins-admin \
+  --namespace cp-plugins-admin \
   --create-namespace
 ```
 
@@ -83,7 +83,7 @@ config.append({
     'tls': False,
     'service': {
       'name': 'community-plugins-admin',
-      'namespace': 'community-plugins-admin',
+      'namespace': 'cp-plugins-admin',
       'port': 8080
     }
   },
@@ -94,7 +94,7 @@ config.append({
     'tls': False,
     'service': {
       'name': 'community-plugins-admin-bff',
-      'namespace': 'community-plugins-admin',
+      'namespace': 'cp-plugins-admin',
       'port': 3000
     }
   }]

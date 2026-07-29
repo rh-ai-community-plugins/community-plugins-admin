@@ -1,6 +1,10 @@
 # Default values for community-plugins-admin.
 # This is a YAML-formatted file.
 
+# -- Target namespace for all namespaced resources.
+# Override with --set namespace=<ns> to deploy elsewhere.
+namespace: cp-plugins-admin
+
 image:
   repository: quay.io/rh-ai-community-plugins/community-plugins-admin
   tag: ""

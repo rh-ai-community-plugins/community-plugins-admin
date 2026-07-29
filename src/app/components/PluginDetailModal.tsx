@@ -33,6 +33,7 @@ import {
   statusLabelColor,
   deploymentModelLabel,
 } from '~/app/utils/maintenance';
+import ConfirmInstallModal from '~/app/components/ConfirmInstallModal';
 import ConfirmRemoveModal from '~/app/components/ConfirmRemoveModal';
 import LifecycleProgressModal from '~/app/components/LifecycleProgressModal';
 
@@ -462,8 +463,11 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
 
   const disabled = !installed && !!pluginName && !!(helmInstalledNames?.has(pluginName));
 
+  const [showInstallConfirm, setShowInstallConfirm] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
+
+  const defaultNamespace = plugin?.install?.namespace ?? pluginName ?? '';
 
   const handleLifecycleComplete = () => {
     setShowProgress(false);
@@ -471,10 +475,15 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
     onLifecycleComplete?.();
   };
 
-  const handleInstall = async () => {
+  const handleInstall = () => {
+    setShowInstallConfirm(true);
+  };
+
+  const handleInstallConfirm = async (namespace: string) => {
     if (!pluginName) return;
+    setShowInstallConfirm(false);
     setShowProgress(true);
-    await lifecycle.install(pluginName);
+    await lifecycle.install(pluginName, namespace);
   };
 
   const handleUpgrade = async () => {
@@ -552,6 +561,14 @@ const PluginDetailModal: React.FC<PluginDetailModalProps> = ({
           </>
         )}
       </Modal>
+      <ConfirmInstallModal
+        pluginName={pluginName}
+        defaultNamespace={defaultNamespace}
+        isOpen={showInstallConfirm}
+        isLoading={lifecycle.loading}
+        onConfirm={handleInstallConfirm}
+        onCancel={() => setShowInstallConfirm(false)}
+      />
       <ConfirmRemoveModal
         pluginName={pluginName}
         isOpen={showRemoveConfirm}

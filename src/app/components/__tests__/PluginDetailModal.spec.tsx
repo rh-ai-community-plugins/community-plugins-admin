@@ -428,13 +428,18 @@ describe('PluginDetailModal', () => {
       expect(installButton).toHaveAttribute('aria-disabled', 'true');
     });
 
-    it('should call lifecycle.install when Install button is clicked', async () => {
+    it('should open install confirmation and call lifecycle.install on confirm', async () => {
       mockUsePluginDetail.mockReturnValue(loadedResult(fullPlugin, false));
       render(
         <PluginDetailModal pluginName="test-plugin" isAdmin={true} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
       );
       await userEvent.click(screen.getByRole('button', { name: 'Install' }));
-      expect(mockLifecycle.install).toHaveBeenCalledWith('test-plugin');
+      expect(screen.getByText('Install plugin')).toBeInTheDocument();
+      const confirmButtons = screen.getAllByRole('button', { name: 'Install', hidden: true });
+      const confirmBtn = confirmButtons.find((btn) => btn.closest('[aria-label="Confirm plugin installation"]'));
+      expect(confirmBtn).toBeDefined();
+      await userEvent.click(confirmBtn!);
+      expect(mockLifecycle.install).toHaveBeenCalledWith('test-plugin', 'test-plugin');
     });
 
     it('should call lifecycle.upgrade when Upgrade button is clicked', async () => {

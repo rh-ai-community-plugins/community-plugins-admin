@@ -63,14 +63,14 @@ The dashboard discovers BFF services via the `proxyService` field in the federat
   "name": "communityPluginsAdmin",
   "backend": {
     "remoteEntry": "/remoteEntry.js",
-    "service": { "name": "community-plugins-admin", "namespace": "community-plugins-admin", "port": 8080 }
+    "service": { "name": "community-plugins-admin", "namespace": "cp-plugins-admin", "port": 8080 }
   },
   "proxyService": [{
     "path": "/community-plugins-admin/api",
     "pathRewrite": "/api",
     "authorize": true,
     "tls": false,
-    "service": { "name": "community-plugins-admin-bff", "namespace": "community-plugins-admin", "port": 3000 }
+    "service": { "name": "community-plugins-admin-bff", "namespace": "cp-plugins-admin", "port": 3000 }
   }]
 }
 ```

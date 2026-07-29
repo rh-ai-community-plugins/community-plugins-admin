@@ -13,14 +13,34 @@ This guide walks through deploying the plugin on an OpenShift cluster that alrea
 
 ---
 
+## Migrating from Pre-0.1.2 Installations
+
+Version 0.1.2 changed the default namespace from `community-plugins-admin` to `cp-plugins-admin`. If you previously installed the plugin under the old namespace, cluster-scoped resources (ClusterRole, ClusterRoleBinding) may still exist with Helm ownership annotations pointing to the old namespace. Clean them up before reinstalling:
+
+```bash
+# 1. Uninstall the old release (if still present)
+helm uninstall community-plugins-admin -n community-plugins-admin
+
+# 2. Remove leftover cluster-scoped resources
+oc delete clusterrole community-plugins-admin-bff
+oc delete clusterrolebinding community-plugins-admin-bff
+
+# 3. Remove the old namespace (if no longer needed)
+oc delete namespace community-plugins-admin
+```
+
+Then proceed with a fresh install using the commands below.
+
+---
+
 ## 1. Install the Plugin
 
 Install directly from the OCI registry — no need to clone the repo:
 
 ```bash
 helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
-  --version 0.1.1 \
-  --namespace community-plugins-admin \
+  --version 0.1.2 \
+  --namespace cp-plugins-admin \
   --create-namespace
 ```
 
@@ -28,7 +48,7 @@ Or, from a local checkout of the repository:
 
 ```bash
 helm install community-plugins-admin chart/ \
-  --namespace community-plugins-admin \
+  --namespace cp-plugins-admin \
   --create-namespace
 ```
 
@@ -44,8 +64,8 @@ Pass `--set` flags to customize the installation:
 
 ```bash
 helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
-  --version 0.1.1 \
-  --namespace community-plugins-admin \
+  --version 0.1.2 \
+  --namespace cp-plugins-admin \
   --create-namespace \
   --set replicaCount=2
 ```
@@ -54,8 +74,8 @@ To deploy the frontend only (no BFF):
 
 ```bash
 helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
-  --version 0.1.1 \
-  --namespace community-plugins-admin \
+  --version 0.1.2 \
+  --namespace cp-plugins-admin \
   --create-namespace \
   --set bff.enabled=false
 ```
@@ -87,7 +107,7 @@ config.append({
     'tls': False,
     'service': {
       'name': 'community-plugins-admin',
-      'namespace': 'community-plugins-admin',
+      'namespace': 'cp-plugins-admin',
       'port': 8080
     }
   }
@@ -119,7 +139,7 @@ config.append({
     'tls': False,
     'service': {
       'name': 'community-plugins-admin',
-      'namespace': 'community-plugins-admin',
+      'namespace': 'cp-plugins-admin',
       'port': 8080
     }
   },
@@ -130,7 +150,7 @@ config.append({
     'tls': False,
     'service': {
       'name': 'community-plugins-admin-bff',
-      'namespace': 'community-plugins-admin',
+      'namespace': 'cp-plugins-admin',
       'port': 3000
     }
   }]
@@ -177,7 +197,7 @@ for entry in data:
 Verify the plugin pods are running:
 
 ```bash
-oc get pods -n community-plugins-admin
+oc get pods -n cp-plugins-admin
 ```
 
 You should see pods for `community-plugins-admin` (and `community-plugins-admin-bff` if BFF is enabled), all in `Running` status.
@@ -217,7 +237,7 @@ If you manage RBAC separately or use a pre-existing ServiceAccount, disable the 
 
 ```bash
 helm install community-plugins-admin chart/ \
-  --namespace community-plugins-admin \
+  --namespace cp-plugins-admin \
   --create-namespace \
   --set bff.rbac.create=false
 ```
@@ -228,7 +248,7 @@ To use a ServiceAccount that already exists in the cluster:
 
 ```bash
 helm install community-plugins-admin chart/ \
-  --namespace community-plugins-admin \
+  --namespace cp-plugins-admin \
   --create-namespace \
   --set bff.serviceAccount.create=false \
   --set bff.serviceAccount.name=my-existing-sa \
@@ -262,8 +282,8 @@ oc set env deployment/rhods-dashboard \
 ### 2. Uninstall the Helm release
 
 ```bash
-helm uninstall community-plugins-admin -n community-plugins-admin
-oc delete namespace community-plugins-admin   # optional: remove the namespace entirely
+helm uninstall community-plugins-admin -n cp-plugins-admin
+oc delete namespace cp-plugins-admin   # optional: remove the namespace entirely
 ```
 
 ---
