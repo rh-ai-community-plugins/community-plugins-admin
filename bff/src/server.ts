@@ -6,7 +6,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, () => {
   try {
     const baseUrl = getK8sBaseUrl();
-    console.log(`BFF listening on port ${PORT}`);
+    console.log(`BFF listening on port ${PORT} (namespace: ${process.env.POD_NAMESPACE ?? 'unknown'})`);
     console.log(`K8s API target: ${baseUrl}`);
   } catch {
     console.error(`BFF listening on port ${PORT}`);

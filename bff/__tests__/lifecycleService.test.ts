@@ -43,6 +43,10 @@ const FAKE_METADATA = {
   install: { helm: { registry: 'oci://quay.io/charts/my-plugin' } },
   remote: { type: 'module-federation', spec: { name: 'myPlugin', scope: 'myPlugin', paths: [{ type: 'route', path: '/my-plugin' }] } },
 };
+const FAKE_METADATA_WITH_NS = {
+  ...FAKE_METADATA,
+  install: { namespace: 'cp-my-plugin', helm: { registry: 'oci://quay.io/charts/my-plugin' } },
+};
 
 beforeEach(() => {
   jest.resetAllMocks();
@@ -126,7 +130,7 @@ describe('upgradePlugin namespace handling', () => {
       'oci://quay.io/charts/my-plugin',
       'custom-ns',
       'token',
-      undefined,
+      { namespace: 'custom-ns' },
     );
   });
 
@@ -142,7 +146,7 @@ describe('upgradePlugin namespace handling', () => {
       'oci://quay.io/charts/my-plugin',
       'installed-ns',
       'token',
-      undefined,
+      { namespace: 'installed-ns' },
     );
   });
 
@@ -157,7 +161,23 @@ describe('upgradePlugin namespace handling', () => {
       'oci://quay.io/charts/my-plugin',
       'my-plugin',
       'token',
-      undefined,
+      { namespace: 'my-plugin' },
+    );
+  });
+
+  it('uses metadata namespace when discovery returns null', async () => {
+    mockDiscoverReleaseNamespace.mockResolvedValue(null);
+    mockGetPluginMetadata.mockResolvedValue(FAKE_METADATA_WITH_NS as never);
+
+    const result = await upgradePlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(true);
+    expect(mockHelmUpgrade).toHaveBeenCalledWith(
+      'my-plugin',
+      'oci://quay.io/charts/my-plugin',
+      'cp-my-plugin',
+      'token',
+      { namespace: 'cp-my-plugin' },
     );
   });
 
@@ -258,7 +278,7 @@ describe('installPlugin', () => {
       'oci://quay.io/charts/my-plugin',
       'my-plugin',
       'token',
-      undefined,
+      { namespace: 'my-plugin' },
     );
     expect(mockAddPluginToConfig).toHaveBeenCalledWith(
       'token',
@@ -282,7 +302,7 @@ describe('installPlugin', () => {
       'oci://quay.io/charts/my-plugin',
       'custom-ns',
       'token',
-      undefined,
+      { namespace: 'custom-ns' },
     );
   });
 
@@ -361,6 +381,44 @@ describe('installPlugin', () => {
     expect(mockHelmUninstall).not.toHaveBeenCalled();
     expect(result.steps.find((s) => s.id === 'cleanup')).toBeUndefined();
   });
+
+  it('uses namespace from plugin metadata when no explicit namespace is provided', async () => {
+    mockGetPluginMetadata.mockResolvedValue(FAKE_METADATA_WITH_NS as never);
+
+    const result = await installPlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(true);
+    expect(mockHelmInstall).toHaveBeenCalledWith(
+      'my-plugin',
+      'oci://quay.io/charts/my-plugin',
+      'cp-my-plugin',
+      'token',
+      { namespace: 'cp-my-plugin' },
+    );
+    expect(mockAddPluginToConfig).toHaveBeenCalledWith(
+      'token',
+      expect.objectContaining({
+        backend: expect.objectContaining({
+          service: { name: 'my-plugin', namespace: 'cp-my-plugin', port: 8080 },
+        }),
+      }),
+    );
+  });
+
+  it('explicit namespace overrides metadata namespace', async () => {
+    mockGetPluginMetadata.mockResolvedValue(FAKE_METADATA_WITH_NS as never);
+
+    const result = await installPlugin('my-plugin', 'token', 'override-ns');
+
+    expect(result.success).toBe(true);
+    expect(mockHelmInstall).toHaveBeenCalledWith(
+      'my-plugin',
+      'oci://quay.io/charts/my-plugin',
+      'override-ns',
+      'token',
+      { namespace: 'override-ns' },
+    );
+  });
 });
 
 describe('enablePlugin', () => {
@@ -379,6 +437,23 @@ describe('enablePlugin', () => {
       }),
     );
     expect(result.steps.every((s) => s.status === 'completed')).toBe(true);
+  });
+
+  it('uses metadata namespace when discovery returns null', async () => {
+    mockDiscoverReleaseNamespace.mockResolvedValue(null);
+    mockGetPluginMetadata.mockResolvedValue(FAKE_METADATA_WITH_NS as never);
+
+    const result = await enablePlugin('my-plugin', 'token');
+
+    expect(result.success).toBe(true);
+    expect(mockAddPluginToConfig).toHaveBeenCalledWith(
+      'token',
+      expect.objectContaining({
+        backend: expect.objectContaining({
+          service: { name: 'my-plugin', namespace: 'cp-my-plugin', port: 8080 },
+        }),
+      }),
+    );
   });
 
   it('returns failure when plugin is not found in registry', async () => {

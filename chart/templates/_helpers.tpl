@@ -1,4 +1,11 @@
 {{/*
+Target namespace for all namespaced resources.
+*/}}
+{{- define "community-plugins-admin.namespace" -}}
+{{- .Values.namespace | default .Release.Namespace }}
+{{- end }}
+
+{{/*
 Expand the name of the chart.
 */}}
 {{- define "community-plugins-admin.name" -}}

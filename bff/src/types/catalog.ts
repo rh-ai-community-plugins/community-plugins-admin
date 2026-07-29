@@ -23,6 +23,7 @@ export interface PluginImage {
 
 export interface PluginInstall {
   method: 'automatic' | 'assisted' | 'manual';
+  namespace?: string;
   helm?: {
     chart_path?: string;
     registry?: string;
@@ -99,6 +100,7 @@ export interface CatalogPluginRemote {
 
 export interface CatalogPluginInstall {
   method: 'automatic' | 'assisted' | 'manual';
+  namespace?: string;
   helm?: {
     chartPath?: string;
     registry?: string;

@@ -3,6 +3,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "community-plugins-admin.fullname" . }}-bff
+  namespace: {{ include "community-plugins-admin.namespace" . }}
   labels:
     {{- include "community-plugins-admin.labels" . | nindent 4 }}
     app.kubernetes.io/component: bff
@@ -48,6 +49,10 @@ spec:
               containerPort: {{ .Values.bff.service.targetPort }}
               protocol: TCP
           env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             - name: DASHBOARD_NAMESPACE
               value: {{ .Values.bff.dashboardNamespace | quote }}
             - name: DASHBOARD_DEPLOYMENT

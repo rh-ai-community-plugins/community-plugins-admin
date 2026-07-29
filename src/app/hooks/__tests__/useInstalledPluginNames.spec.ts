@@ -2,6 +2,7 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { useInstalledPluginNames, scopeToKebab } from '../useInstalledPluginNames';
 
 const mockConfig = {
+  bffNamespace: 'cp-plugins-admin',
   dashboardNamespace: 'redhat-ods-applications',
   dashboardDeployment: 'rhods-dashboard',
 };

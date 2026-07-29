@@ -24,6 +24,7 @@ function buildCatalogPlugin(
   if (metadata.install) {
     install = {
       method: metadata.install.method,
+      namespace: metadata.install.namespace,
       helm: metadata.install.helm
         ? { chartPath: metadata.install.helm.chart_path, registry: metadata.install.helm.registry }
         : undefined,

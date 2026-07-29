@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { getK8sBaseUrl } from '../utils/k8sClient';
 
-const HELM_TIMEOUT_MS = 120_000;
+const HELM_TIMEOUT_MS = 330_000;
 const HELM_BIN = process.env.HELM_BIN || 'helm';
 
 export interface HelmRelease {

@@ -17,6 +17,7 @@ app.use(express.json({ limit: '100kb' }));
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.get('/api/config', (_req, res) => res.json({
+  bffNamespace: process.env.POD_NAMESPACE || 'cp-plugins-admin',
   dashboardNamespace: process.env.DASHBOARD_NAMESPACE || 'redhat-ods-applications',
   dashboardDeployment: process.env.DASHBOARD_DEPLOYMENT || 'rhods-dashboard',
 }));
