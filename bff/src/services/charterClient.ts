@@ -3,7 +3,7 @@ import { fetchUrl } from '../utils/httpClient';
 import { RegistryFile, RegistryPlugin } from '../types/catalog';
 
 const DEFAULT_REGISTRY_URL =
-  'https://raw.githubusercontent.com/rh-ai-community-plugins/charter/dev/plugins.yaml';
+  'https://raw.githubusercontent.com/rh-ai-community-plugins/charter/main/plugins.yaml';
 
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
 

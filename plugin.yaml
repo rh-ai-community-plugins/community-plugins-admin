@@ -5,7 +5,7 @@ description: >-
   Discover, install, upgrade, remove, enable, and disable community plugins
   for the RHOAI Dashboard. Browse the community plugin catalog, view detailed
   plugin metadata, and manage the full plugin lifecycle from the dashboard UI.
-version: 0.1.2
+version: 0.1.3
 
 # --- Maintainer (required) ---
 maintainer:                          # [PLUGIN-SPECIFIC]
@@ -22,11 +22,11 @@ deployment_model: cluster-shared     # per-project | cluster-shared | both
 
 image:                               # [PLUGIN-SPECIFIC]
   repository: quay.io/rh-ai-community-plugins/community-plugins-admin
-  tag: "0.1.2"
+  tag: "0.1.3"
 
 bff_image:                           # [PLUGIN-SPECIFIC] (optional — only if using BFF pattern)
   repository: quay.io/rh-ai-community-plugins/community-plugins-admin-bff
-  tag: "0.1.2"
+  tag: "0.1.3"
 
 # --- Installation (required) ---
 install:

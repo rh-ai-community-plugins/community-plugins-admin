@@ -131,6 +131,7 @@ describe('upgradePlugin namespace handling', () => {
       'custom-ns',
       'token',
       { namespace: 'custom-ns' },
+      '1.0.0',
     );
   });
 
@@ -147,6 +148,7 @@ describe('upgradePlugin namespace handling', () => {
       'installed-ns',
       'token',
       { namespace: 'installed-ns' },
+      '1.0.0',
     );
   });
 
@@ -162,6 +164,7 @@ describe('upgradePlugin namespace handling', () => {
       'my-plugin',
       'token',
       { namespace: 'my-plugin' },
+      '1.0.0',
     );
   });
 
@@ -178,6 +181,7 @@ describe('upgradePlugin namespace handling', () => {
       'cp-my-plugin',
       'token',
       { namespace: 'cp-my-plugin' },
+      '1.0.0',
     );
   });
 
@@ -279,6 +283,7 @@ describe('installPlugin', () => {
       'my-plugin',
       'token',
       { namespace: 'my-plugin' },
+      '1.0.0',
     );
     expect(mockAddPluginToConfig).toHaveBeenCalledWith(
       'token',
@@ -303,6 +308,7 @@ describe('installPlugin', () => {
       'custom-ns',
       'token',
       { namespace: 'custom-ns' },
+      '1.0.0',
     );
   });
 
@@ -394,6 +400,7 @@ describe('installPlugin', () => {
       'cp-my-plugin',
       'token',
       { namespace: 'cp-my-plugin' },
+      '1.0.0',
     );
     expect(mockAddPluginToConfig).toHaveBeenCalledWith(
       'token',
@@ -417,6 +424,7 @@ describe('installPlugin', () => {
       'override-ns',
       'token',
       { namespace: 'override-ns' },
+      '1.0.0',
     );
   });
 });

@@ -131,7 +131,7 @@ Plugin details are displayed in a **modal** over the catalog or installed page, 
 **Deliverables**:
 
 1. **Charter registry client** (`bff/src/services/charterClient.ts`)
-   - Fetch `plugins.yaml` from `https://raw.githubusercontent.com/rh-ai-community-plugins/charter/dev/plugins.yaml`
+   - Fetch `plugins.yaml` from `https://raw.githubusercontent.com/rh-ai-community-plugins/charter/main/plugins.yaml`
    - Parse YAML into typed plugin list
    - In-memory cache with configurable TTL (default: 5 minutes)
    - Graceful fallback on fetch failure (serve stale cache)
