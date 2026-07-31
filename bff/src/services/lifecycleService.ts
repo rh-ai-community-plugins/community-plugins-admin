@@ -38,6 +38,7 @@ async function resolvePluginChart(pluginName: string): Promise<{
   chart: string;
   repo: string;
   namespace?: string;
+  version?: string;
   mfName: string;
   hasBff: boolean;
   routePath: string;
@@ -68,7 +69,7 @@ async function resolvePluginChart(pluginName: string): Promise<{
   const routeSpec = metadata.remote?.spec?.paths?.find((p) => p.type === 'route');
   const routePath = routeSpec?.path ?? `/${pluginName}`;
 
-  return { chart, repo: regEntry.repo, namespace: ns, mfName, hasBff, routePath };
+  return { chart, repo: regEntry.repo, namespace: ns, version: metadata.version, mfName, hasBff, routePath };
 }
 
 export async function installPlugin(
@@ -98,7 +99,7 @@ export async function installPlugin(
 
     markRunning(steps[1]);
     onProgress?.(steps);
-    await helmInstall(releaseName, pluginInfo.chart, ns, token, { namespace: ns, ...values });
+    await helmInstall(releaseName, pluginInfo.chart, ns, token, { namespace: ns, ...values }, pluginInfo.version);
     markCompleted(steps[1]);
     onProgress?.(steps);
 
@@ -181,7 +182,7 @@ export async function upgradePlugin(
 
     markRunning(steps[1]);
     onProgress?.(steps);
-    await helmUpgrade(pluginName, pluginInfo.chart, ns, token, { namespace: ns, ...values });
+    await helmUpgrade(pluginName, pluginInfo.chart, ns, token, { namespace: ns, ...values }, pluginInfo.version);
     markCompleted(steps[1]);
     onProgress?.(steps);
 

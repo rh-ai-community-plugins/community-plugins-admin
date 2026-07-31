@@ -190,6 +190,31 @@ describe('helmInstall', () => {
     expect(args).toContain('image.tag=2.0.0');
   });
 
+  it('includes --version flag when version is provided', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'token', undefined, '1.2.3');
+
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args).toContain('--version');
+    expect(args).toContain('1.2.3');
+  });
+
+  it('omits --version flag when version is not provided', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmInstall('my-plugin', 'chart', 'ns', 'token');
+
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args).not.toContain('--version');
+  });
+
   it('throws on execFile error', async () => {
     mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
       cb(new Error('helm not found'), '', 'command not found');
@@ -227,6 +252,19 @@ describe('helmUpgrade', () => {
     await helmUpgrade('my-plugin', 'chart', 'ns', 'token');
 
     expect(mockFs.rmSync).toHaveBeenCalledWith(FAKE_TMP_DIR, { recursive: true, force: true });
+  });
+
+  it('includes --version flag when version is provided', async () => {
+    mockExecFile.mockImplementation((_cmd, _args, _opts, cb) => {
+      cb(null, '{}', '');
+      return undefined as never;
+    });
+
+    await helmUpgrade('my-plugin', 'chart', 'ns', 'token', undefined, '2.0.0');
+
+    const args = mockExecFile.mock.calls[0][1] as string[];
+    expect(args).toContain('--version');
+    expect(args).toContain('2.0.0');
   });
 });
 

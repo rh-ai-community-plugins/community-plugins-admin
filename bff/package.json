@@ -1,6 +1,6 @@
 {
   "name": "community-plugins-admin-bff",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "BFF service for the Community Plugins Admin RHOAI dashboard plugin",
   "main": "dist/server.js",
   "scripts": {

@@ -129,6 +129,7 @@ export async function helmInstall(
   namespace: string,
   token: string,
   values?: Record<string, unknown>,
+  version?: string,
 ): Promise<string> {
   const args = [
     'install', releaseName, chart,
@@ -138,6 +139,10 @@ export async function helmInstall(
     '--timeout', '5m',
     '--output', 'json',
   ];
+
+  if (version) {
+    args.push('--version', version);
+  }
 
   if (values) {
     validateHelmValues(values);
@@ -156,6 +161,7 @@ export async function helmUpgrade(
   namespace: string,
   token: string,
   values?: Record<string, unknown>,
+  version?: string,
 ): Promise<string> {
   const args = [
     'upgrade', releaseName, chart,
@@ -164,6 +170,10 @@ export async function helmUpgrade(
     '--timeout', '5m',
     '--output', 'json',
   ];
+
+  if (version) {
+    args.push('--version', version);
+  }
 
   if (values) {
     validateHelmValues(values);

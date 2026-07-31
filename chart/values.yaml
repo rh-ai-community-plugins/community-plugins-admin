@@ -85,7 +85,7 @@ bff:
   dashboardNamespace: "redhat-ods-applications"
   dashboardDeployment: "rhods-dashboard"
   # Charter registry URL (source of available plugins)
-  charterRegistryUrl: "https://raw.githubusercontent.com/rh-ai-community-plugins/charter/dev/plugins.yaml"
+  charterRegistryUrl: "https://raw.githubusercontent.com/rh-ai-community-plugins/charter/main/plugins.yaml"
   # Cache TTL settings (milliseconds)
   cache:
     charterTtlMs: 300000
