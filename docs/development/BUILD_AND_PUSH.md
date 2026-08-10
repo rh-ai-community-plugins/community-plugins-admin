@@ -182,7 +182,7 @@ make chart-push
 
 ```bash
 helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
-  --version 0.1.3 \
+  --version 0.1.4 \
   --namespace cp-plugins-admin \
   --create-namespace
 ```
