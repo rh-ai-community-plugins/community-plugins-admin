@@ -75,11 +75,19 @@ function sendSSE(
     'X-Accel-Buffering': 'no',
   });
 
+  let closed = false;
+
   const heartbeat = setInterval(() => {
-    res.write(': keepalive\n\n');
+    if (!closed) res.write(': keepalive\n\n');
   }, 15_000);
 
+  res.on('close', () => {
+    closed = true;
+    clearInterval(heartbeat);
+  });
+
   const onProgress: LifecycleProgressCallback = (steps) => {
+    if (closed) return;
     const data = JSON.stringify({ steps: steps.map(s => ({ ...s })) });
     res.write(`event: progress\ndata: ${data}\n\n`);
   };
@@ -87,11 +95,13 @@ function sendSSE(
   serviceFn(onProgress)
     .then((result) => {
       clearInterval(heartbeat);
+      if (closed) return;
       res.write(`event: complete\ndata: ${JSON.stringify(result)}\n\n`);
       res.end();
     })
     .catch(() => {
       clearInterval(heartbeat);
+      if (closed) return;
       const fallback: LifecycleResponse = {
         success: false,
         message: 'Operation failed',

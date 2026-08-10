@@ -3,6 +3,16 @@ import { LifecycleResponse, LifecycleStep, LifecycleOperation, LifecycleProgress
 
 const API_BASE = '/community-plugins-admin/api/plugins';
 
+class StreamInterruptedError extends Error {
+  constructor() {
+    super(
+      'Connection lost during operation. The operation may still be running. ' +
+        'Close this dialog and refresh to check the current status.',
+    );
+    this.name = 'StreamInterruptedError';
+  }
+}
+
 export interface PluginLifecycleState {
   loading: boolean;
   operation: LifecycleOperation | null;
@@ -54,7 +64,13 @@ async function lifecycleStreamRequest(
   let finalResult: LifecycleResponse | null = null;
 
   for (;;) {
-    const { done, value } = await reader.read();
+    let done: boolean;
+    let value: string | undefined;
+    try {
+      ({ done, value } = await reader.read());
+    } catch {
+      throw new StreamInterruptedError();
+    }
     if (done) break;
 
     buffer += value;
@@ -87,7 +103,7 @@ async function lifecycleStreamRequest(
   }
 
   if (!finalResult) {
-    throw new Error('Stream ended without a complete event');
+    throw new StreamInterruptedError();
   }
 
   return finalResult;
@@ -124,7 +140,16 @@ export function usePluginLifecycle(): PluginLifecycle {
           message,
           steps: [],
         };
-        setState({ loading: false, operation, steps: [], result: failedResult, error: message });
+        setState((prev) => ({
+          loading: false,
+          operation,
+          steps: err instanceof StreamInterruptedError ? prev.steps : [],
+          result: {
+            ...failedResult,
+            steps: err instanceof StreamInterruptedError ? prev.steps : [],
+          },
+          error: message,
+        }));
         return failedResult;
       }
     },
