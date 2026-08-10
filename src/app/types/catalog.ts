@@ -19,8 +19,17 @@ export interface CatalogPluginInstall {
   instructions?: string;
 }
 
+export interface CatalogPluginRbacRule {
+  description?: string;
+  apiGroups?: string[];
+  resources?: string[];
+  verbs?: string[];
+}
+
 export interface CatalogPluginRbac {
-  requiredRoles?: string[];
+  // Canonically a list of human-readable strings, but some plugin manifests
+  // declare full policy-rule objects, so we accept both shapes.
+  requiredRoles?: Array<string | CatalogPluginRbacRule>;
   clusterRoles?: boolean;
 }
 

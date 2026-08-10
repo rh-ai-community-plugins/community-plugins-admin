@@ -38,8 +38,17 @@ export interface PluginSupport {
   issues?: string;
 }
 
+export interface PluginRbacRule {
+  description?: string;
+  apiGroups?: string[];
+  resources?: string[];
+  verbs?: string[];
+}
+
 export interface PluginRbac {
-  required_roles?: string[];
+  // Canonically a list of human-readable strings, but some plugin manifests
+  // declare full policy-rule objects, so we accept both shapes.
+  required_roles?: Array<string | PluginRbacRule>;
   cluster_roles?: boolean;
 }
 
@@ -109,8 +118,15 @@ export interface CatalogPluginInstall {
   instructions?: string;
 }
 
+export interface CatalogPluginRbacRule {
+  description?: string;
+  apiGroups?: string[];
+  resources?: string[];
+  verbs?: string[];
+}
+
 export interface CatalogPluginRbac {
-  requiredRoles?: string[];
+  requiredRoles?: Array<string | CatalogPluginRbacRule>;
   clusterRoles?: boolean;
 }
 
