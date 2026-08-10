@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Lifecycle progress modal** — the in-progress step now shows a spinner and a live elapsed-time counter, giving clearer feedback that an operation is still running.
 
+### Fixed
+
+- **Plugin detail modal crash** — opening the detail modal for a plugin whose `plugin.yaml` declares `required_roles` as policy-rule objects (instead of strings) no longer crashes with React error #31. Rule objects are now coerced to a readable summary, and this plugin's own manifest uses the canonical string form.
+
 ## [0.1.3] - 2026-07-31
 
 ### Fixed

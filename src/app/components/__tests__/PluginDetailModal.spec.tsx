@@ -312,6 +312,43 @@ describe('PluginDetailModal', () => {
       expect(screen.getByText('test-plugin-manager')).toBeInTheDocument();
     });
 
+    it('renders required roles declared as policy-rule objects without crashing', () => {
+      // Some plugin manifests declare required_roles as full policy-rule
+      // objects instead of strings. These must be coerced to display strings
+      // rather than rendered as raw React children (regression: React error #31).
+      mockUsePluginDetail.mockReturnValue(
+        loadedResult({
+          ...fullPlugin,
+          rbac: {
+            clusterRoles: true,
+            requiredRoles: [
+              {
+                description: 'Manage namespaces for plugin deployments',
+                apiGroups: [''],
+                resources: ['namespaces'],
+                verbs: ['get', 'list', 'create', 'delete'],
+              },
+              {
+                apiGroups: ['apps'],
+                resources: ['deployments'],
+                verbs: ['get', 'list'],
+              },
+            ],
+          },
+        }),
+      );
+      render(
+        <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,
+      );
+      expect(screen.getByText('RBAC Requirements')).toBeInTheDocument();
+      // Object with a description shows the description text.
+      expect(
+        screen.getByText('Manage namespaces for plugin deployments'),
+      ).toBeInTheDocument();
+      // Object without a description is summarized from its rule fields.
+      expect(screen.getByText('apps/deployments: get, list')).toBeInTheDocument();
+    });
+
     it('renders support links', () => {
       render(
         <PluginDetailModal pluginName="test-plugin" isAdmin={false} installedNames={emptyNames} installedLoading={false} lifecycle={mockLifecycle} onClose={jest.fn()} />,

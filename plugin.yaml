@@ -63,26 +63,11 @@ remote:
 rbac:
   cluster_roles: true
   required_roles:
-    - description: "Manage namespaces for plugin deployments"
-      apiGroups: [""]
-      resources: ["namespaces"]
-      verbs: ["get", "list", "create", "delete"]
-    - description: "Manage Helm-deployed workload resources across namespaces"
-      apiGroups: ["apps"]
-      resources: ["deployments", "statefulsets", "daemonsets", "replicasets"]
-      verbs: ["get", "list", "create", "update", "patch", "delete"]
-    - description: "Manage Helm-deployed core resources across namespaces (includes Helm release secrets)"
-      apiGroups: [""]
-      resources: ["services", "configmaps", "secrets", "serviceaccounts", "persistentvolumeclaims"]
-      verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
-    - description: "Manage namespace-scoped RBAC resources created by plugin Helm charts"
-      apiGroups: ["rbac.authorization.k8s.io"]
-      resources: ["roles", "rolebindings"]
-      verbs: ["get", "list", "create", "update", "patch", "delete"]
-    - description: "Manage networking resources created by plugin Helm charts"
-      apiGroups: ["networking.k8s.io"]
-      resources: ["ingresses", "networkpolicies"]
-      verbs: ["get", "list", "create", "update", "patch", "delete"]
+    - "namespaces: get, list, create, delete"
+    - "apps/deployments, statefulsets, daemonsets, replicasets: get, list, create, update, patch, delete"
+    - "services, configmaps, secrets, serviceaccounts, persistentvolumeclaims: get, list, watch, create, update, patch, delete"
+    - "rbac.authorization.k8s.io/roles, rolebindings: get, list, create, update, patch, delete"
+    - "networking.k8s.io/ingresses, networkpolicies: get, list, create, update, patch, delete"
 
 # --- Support (optional) ---
 support:

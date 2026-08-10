@@ -26,7 +26,7 @@ import ExternalLinkAltIcon from '@patternfly/react-icons/dist/js/icons/external-
 import BanIcon from '@patternfly/react-icons/dist/js/icons/ban-icon';
 import { usePluginDetail } from '~/app/hooks/usePluginDetail';
 import { PluginLifecycle } from '~/app/hooks/usePluginLifecycle';
-import { CatalogPlugin } from '~/app/types/catalog';
+import { CatalogPlugin, CatalogPluginRbacRule } from '~/app/types/catalog';
 import {
   maintenanceLabelColor,
   maintenanceDisplayText,
@@ -36,6 +36,22 @@ import {
 import ConfirmInstallModal from '~/app/components/ConfirmInstallModal';
 import ConfirmRemoveModal from '~/app/components/ConfirmRemoveModal';
 import LifecycleProgressModal from '~/app/components/LifecycleProgressModal';
+
+/**
+ * Render a required-role entry as a display string. The canonical schema uses
+ * plain strings, but some plugin manifests declare full policy-rule objects
+ * ({ description, apiGroups, resources, verbs }); coerce those so an object is
+ * never passed as a raw React child (which throws React error #31).
+ */
+function formatRequiredRole(role: string | CatalogPluginRbacRule): string {
+  if (typeof role === 'string') return role;
+  if (role.description) return role.description;
+  const groups = (role.apiGroups ?? []).filter((g) => g).join(', ');
+  const resources = (role.resources ?? []).join(', ');
+  const verbs = (role.verbs ?? []).join(', ');
+  const scope = [groups, resources].filter(Boolean).join('/');
+  return [scope, verbs].filter(Boolean).join(': ') || 'Custom role';
+}
 
 interface PluginDetailModalProps {
   pluginName: string | null;
@@ -262,11 +278,14 @@ const PluginDetailContent: React.FC<{
                 )}
                 {plugin.rbac.requiredRoles && plugin.rbac.requiredRoles.length > 0 && (
                   <LabelGroup>
-                    {plugin.rbac.requiredRoles.map((role) => (
-                      <Label key={role} isCompact>
-                        {role}
-                      </Label>
-                    ))}
+                    {plugin.rbac.requiredRoles.map((role, index) => {
+                      const text = formatRequiredRole(role);
+                      return (
+                        <Label key={`${text}-${index}`} isCompact>
+                          {text}
+                        </Label>
+                      );
+                    })}
                   </LabelGroup>
                 )}
               </DescriptionListDescription>
