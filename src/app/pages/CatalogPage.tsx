@@ -48,6 +48,7 @@ import { usePluginLifecycle } from '~/app/hooks/usePluginLifecycle';
 import PluginDetailModal from '~/app/components/PluginDetailModal';
 import { CatalogPlugin } from '~/app/types/catalog';
 import { maintenanceLabelColor, maintenanceDisplayText, statusLabelColor, deploymentModelLabel } from '~/app/utils/maintenance';
+import { resolveInstallState } from '~/app/utils/installState';
 
 type FilterKey = 'status' | 'maintenance' | 'installState';
 
@@ -101,8 +102,7 @@ const CatalogPage: React.FC = () => {
         maintenanceFilters.length === 0 ||
         maintenanceFilters.includes(p.maintenance);
 
-      const isInstalled = installedNames.has(p.name);
-      const isDisabled = helmInstalledNames.has(p.name) && !isInstalled;
+      const { installed: isInstalled, disabled: isDisabled } = resolveInstallState(p, { installedNames, helmInstalledNames });
       const matchesInstallState =
         installStateFilters.length === 0 ||
         (installStateFilters.includes('installed') && isInstalled) ||
@@ -288,8 +288,7 @@ const CatalogPage: React.FC = () => {
   );
 
   const renderPluginCard = (plugin: CatalogPlugin) => {
-    const isInstalled = installedNames.has(plugin.name);
-    const isDisabled = helmInstalledNames.has(plugin.name) && !isInstalled;
+    const { installed: isInstalled, disabled: isDisabled } = resolveInstallState(plugin, { installedNames, helmInstalledNames });
     const installedVersion = helmVersionMap.get(plugin.name);
     const hasUpdate =
       installedVersion !== undefined &&

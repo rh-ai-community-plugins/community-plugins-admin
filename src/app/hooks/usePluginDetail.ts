@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CatalogPlugin } from '~/app/types/catalog';
+import { mfKebab } from '~/app/utils/installState';
 
 export interface PluginDetailResult {
   plugin: CatalogPlugin | null;
@@ -55,7 +56,14 @@ export function usePluginDetail(
     return () => controller.abort();
   }, [pluginName]);
 
-  const installed = pluginName ? installedNames.has(pluginName) : false;
+  // The card/modal name is the registry name; the dashboard config registers
+  // the plugin under its MF scope name. Accept either (they diverge when a
+  // repo is renamed — e.g. registry "gpu-booking-plugin" with MF scope
+  // "gpuBooking"). plugin metadata is null while loading, so the check
+  // upgrades once remote.spec.name is available.
+  const installed = pluginName
+    ? installedNames.has(pluginName) || (!!plugin && installedNames.has(mfKebab(plugin)))
+    : false;
 
   return {
     plugin,

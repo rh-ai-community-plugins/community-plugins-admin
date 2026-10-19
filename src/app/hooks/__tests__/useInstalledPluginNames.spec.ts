@@ -76,6 +76,49 @@ describe('useInstalledPluginNames', () => {
     expect(result.current.error).toBeNull();
   });
 
+  it('keys installed names by kebab-cased MF scope when it differs from the registry name', async () => {
+    // Real-world case: charter entry "gpu-booking-plugin" with MF scope
+    // "gpuBooking" → the federation config registers "gpuBooking", so the
+    // installed set must contain "gpu-booking", not "gpu-booking-plugin".
+    global.fetch = jest.fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockConfig) })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            spec: {
+              template: {
+                spec: {
+                  containers: [
+                    {
+                      name: 'rhods-dashboard',
+                      env: [
+                        {
+                          name: 'MODULE_FEDERATION_CONFIG',
+                          value: JSON.stringify([
+                            {
+                              name: 'gpuBooking',
+                              backend: { remoteEntry: '/remoteEntry.js', tls: false, service: { name: 'gpu-booking', namespace: 'cp-gpu-booking', port: 8080 } },
+                            },
+                          ]),
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          }),
+      });
+
+    const { result } = renderHook(() => useInstalledPluginNames());
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.installedNames).toEqual(new Set(['gpu-booking']));
+    expect(result.current.error).toBeNull();
+  });
+
   it('should return empty set when MODULE_FEDERATION_CONFIG is missing', async () => {
     global.fetch = jest.fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(mockConfig) })
