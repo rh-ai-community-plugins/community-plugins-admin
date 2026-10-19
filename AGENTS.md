@@ -195,8 +195,7 @@ Jest with `ts-jest` preset and `jsdom` environment (`jest.config.js`). `jest.set
 
 ### CI/CD Workflows
 
-- `.github/workflows/ci.yml` — Runs tests and lint for both frontend and BFF on push/PR to main and dev. Also lints the Helm chart (helm lint, helm template, RBAC safety guard verification).
-- `.github/workflows/build-push.yml` — Builds and pushes both container images to Quay.io. Manually triggered via `workflow_dispatch` with a version input.
+- `.github/workflows/ci.yml` — Gated CI pipeline: a paths-filter job decides per PR/push what runs. Code changes → tests + lint (frontend + BFF); doc-only/plugin.yaml/chart-only changes → linting only. On push (PR merge or direct), tests are skipped when the merged PR's own CI run was green at its head SHA. After green tests on push with code changes, builds and pushes both images to Quay.io tagged `<package.json version>-<first 4 of SHA>` plus the plain version. Also lints the Helm chart and validates `plugin.yaml` syntax. Manually triggerable via `workflow_dispatch` (full pipeline).
 
 ## Documentation
 

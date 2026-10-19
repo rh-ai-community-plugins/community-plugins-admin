@@ -5,9 +5,125 @@ on:
     branches: [main, dev]
   pull_request:
     branches: [main, dev]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  IMAGE_REGISTRY: quay.io/rh-ai-community-plugins
+  FRONTEND_IMAGE: community-plugins-admin
+  BFF_IMAGE: community-plugins-admin-bff
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # Gate: computes what needs to run from the event's diff.
+  #   PR          -> diff of the PR against its merge base
+  #   push        -> diff between the pushed commit and its parent (direct push
+  #                  or PR merge); fetch-depth 0 is required for this
+  #   workflow_dispatch -> gate outputs are ignored; jobs run unconditionally
+  # ---------------------------------------------------------------------------
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      chart: ${{ steps.filter.outputs.chart }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute diff filters
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'bff/src/**'
+              - 'bff/package.json'
+              - 'bff/package-lock.json'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'Containerfile'
+              - 'bff/Containerfile'
+              - 'config/webpack.common.js'
+              - 'config/webpack.dev.js'
+              - 'config/webpack.prod.js'
+              - 'jest.config.js'
+              - 'jest.setup.tsx'
+              - 'tsconfig.json'
+              - 'bff/tsconfig.json'
+              - '.github/workflows/ci.yml'
+            chart:
+              - 'chart/**'
+
+  # ---------------------------------------------------------------------------
+  # Merge reuse: on push, resolve the PR merged into the head commit and check
+  # whether its own CI run (at the PR head SHA) was green. If so, the tests do
+  # not need to run again on the merged commit. Defensive shell throughout:
+  # any API hiccup yields reuse_tests=false, i.e. tests run (fail-safe).
+  # ---------------------------------------------------------------------------
+  merge-reuse:
+    needs: gate
+    if: github.event_name == 'push' && needs.gate.outputs.code == 'true'
+    runs-on: ubuntu-latest
+    name: Reuse PR test results on merge
+    outputs:
+      reuse_tests: ${{ steps.merge.outputs.reuse_tests }}
+    steps:
+      - name: Decide whether PR test results can be reused
+        id: merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          MERGED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          reuse=false
+
+          # Resolve the PR associated with this merge/push commit.
+          # Returns an empty array for direct pushes (no PR).
+          pr_number=$(gh api "repos/$REPO/commits/$MERGED_SHA/pulls" --jq '.[0].number // empty' 2>/dev/null || true)
+
+          if [ -n "$pr_number" ]; then
+            pr_head=$(gh api "repos/$REPO/pulls/$pr_number" --jq '.head.sha' 2>/dev/null || true)
+
+            # Latest completed run of this workflow at the PR head SHA.
+            pr_conclusion=$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?head_sha=$pr_head&event=pull_request&per_page=5" \
+              --jq '[.workflow_runs[] | select(.conclusion != null)][0].conclusion // empty' 2>/dev/null || true)
+
+            if [ "$pr_conclusion" = "success" ]; then
+              echo "PR #$pr_number (head $pr_head) has a green CI run — reusing its test results"
+              reuse=true
+            else
+              echo "PR #$pr_number CI run conclusion is '$pr_conclusion' — tests must run again"
+            fi
+          else
+            echo "Direct push (no PR merge) — tests must run"
+          fi
+
+          echo "reuse_tests=$reuse" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  # Tests: frontend and BFF. Run when code files changed. On push to dev they
+  # are skipped only when merge-reuse determined the merged PR already had a
+  # green run.
+  # ---------------------------------------------------------------------------
   test:
+    needs: [gate, merge-reuse]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' && needs.gate.outputs.code == 'true') ||
+       (github.event_name == 'push' && needs.gate.outputs.code == 'true' && needs.merge-reuse.outputs.reuse_tests != 'true'))
     runs-on: ubuntu-latest
     name: Run tests and linting
     steps:
@@ -30,6 +146,12 @@ jobs:
         run: npm run lint
 
   test-bff:
+    needs: [gate, merge-reuse]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' && needs.gate.outputs.code == 'true') ||
+       (github.event_name == 'push' && needs.gate.outputs.code == 'true' && needs.merge-reuse.outputs.reuse_tests != 'true'))
     runs-on: ubuntu-latest
     name: Run BFF tests and linting
     defaults:
@@ -55,7 +177,40 @@ jobs:
       - name: Run linter
         run: npm run lint
 
+  lint:
+    needs: [gate, merge-reuse]
+    if: "!cancelled()"
+    runs-on: ubuntu-latest
+    name: Lint (runs for docs-only changes too)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Validate plugin.yaml syntax
+        run: python3 -c "import yaml; yaml.safe_load(open('plugin.yaml')); print('plugin.yaml is valid YAML')"
+
+  # ---------------------------------------------------------------------------
+  # Helm chart lint: runs when the chart changed or on manual dispatch.
+  # ---------------------------------------------------------------------------
   lint-chart:
+    needs: [gate, merge-reuse]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'pull_request' && needs.gate.outputs.code == 'true') ||
+       needs.gate.outputs.chart == 'true')
     runs-on: ubuntu-latest
     name: Lint Helm chart
     steps:
@@ -79,3 +234,69 @@ jobs:
             echo "ERROR: expected helm template to fail but it succeeded"
             exit 1
           fi
+
+  # ---------------------------------------------------------------------------
+  # Images: on push to dev/main with code changes (or manual dispatch), build
+  # and push both images after tests are green (or were legitimately reused).
+  # Tag: <package.json version>-<first 4 chars of the commit SHA>, plus the
+  # plain version tag that plugin.yaml and the Helm chart reference.
+  # ---------------------------------------------------------------------------
+  images:
+    needs: [gate, merge-reuse, test, test-bff, lint, lint-chart]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && needs.gate.outputs.code == 'true')) &&
+      (needs.merge-reuse.result == 'success' || needs.merge-reuse.result == 'skipped') &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (needs.test-bff.result == 'success' || needs.test-bff.result == 'skipped') &&
+      (needs.lint.result == 'success' || needs.lint.result == 'skipped') &&
+      (needs.lint-chart.result == 'success' || needs.lint-chart.result == 'skipped')
+    runs-on: ubuntu-latest
+    name: Build and push images
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Quay.io
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      - name: Compute image tags
+        run: |
+          echo "VERSION=$(jq -r .version package.json)" >> "$GITHUB_ENV"
+          echo "SHA4=${GITHUB_SHA::4}" >> "$GITHUB_ENV"
+
+      - name: Build and push frontend image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.FRONTEND_IMAGE }}
+          tags: ${{ env.VERSION }}-${{ env.SHA4 }} ${{ env.VERSION }}
+          containerfiles: |
+            ./Containerfile
+
+      - name: Push frontend to Quay.io
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ env.FRONTEND_IMAGE }}
+          tags: ${{ env.VERSION }}-${{ env.SHA4 }} ${{ env.VERSION }}
+          registry: ${{ env.IMAGE_REGISTRY }}
+
+      - name: Build and push BFF image
+        uses: redhat-actions/buildah-build@v2
+        with:
+          image: ${{ env.BFF_IMAGE }}
+          tags: ${{ env.VERSION }}-${{ env.SHA4 }} ${{ env.VERSION }}
+          containerfiles: |
+            ./bff/Containerfile
+          context: ./bff
+
+      - name: Push BFF to Quay.io
+        uses: redhat-actions/push-to-registry@v2
+        with:
+          image: ${{ env.BFF_IMAGE }}
+          tags: ${{ env.VERSION }}-${{ env.SHA4 }} ${{ env.VERSION }}
+          registry: ${{ env.IMAGE_REGISTRY }}

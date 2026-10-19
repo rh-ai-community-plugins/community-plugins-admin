@@ -193,4 +193,6 @@ See [OPENSHIFT_DEPLOY.md](../deployment/OPENSHIFT_DEPLOY.md) for the full deploy
 
 ## CI Workflow
 
-The `.github/workflows/build-push.yml` workflow can build and push both images from CI. It is manually triggered via GitHub's `workflow_dispatch` and requires a `version` input. It uses Buildah for builds and pushes to the same Quay.io registry.
+The `.github/workflows/ci.yml` workflow builds and pushes both images from CI. It runs automatically on push to `dev` (and `main`) when code files change, after tests pass, and can also be triggered manually via `workflow_dispatch`. Image tags come from the `version` field in `package.json`, suffixed with `-` plus the first four characters of the commit SHA (e.g. `0.1.4-87c0`), and the plain version tag is also pushed so `plugin.yaml` and the Helm chart keep working. It uses Buildah for builds and pushes to the same Quay.io registry.
+
+Test execution is gated by a paths filter: PRs and pushes touching only docs, `plugin.yaml`, or the chart skip the Jest test jobs and run linting only. On merge to `dev`, the CI run of the merged PR (at its head SHA) is looked up — if it was green, tests are not run again.
