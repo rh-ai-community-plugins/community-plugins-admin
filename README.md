@@ -49,7 +49,7 @@ Install directly from the OCI registry — no need to clone this repo:
 
 ```bash
 helm install community-plugins-admin oci://quay.io/rh-ai-community-plugins/community-plugins-admin-chart \
-  --version 0.1.4 \
+  --version 0.1.5 \
   --namespace cp-plugins-admin \
   --create-namespace
 ```
