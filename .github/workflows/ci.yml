@@ -236,11 +236,6 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------------
-  # Images: on push to dev/main with code changes (or manual dispatch), build
-  # and push both images after tests are green (or were legitimately reused).
-  # Tag: <package.json version>-<first 4 chars of the commit SHA>, plus the
-  # plain version tag that plugin.yaml and the Helm chart reference.
-  # ---------------------------------------------------------------------------
   images:
     needs: [gate, merge-reuse, test, test-bff, lint, lint-chart]
     if: >-
@@ -300,3 +295,46 @@ jobs:
           image: ${{ env.BFF_IMAGE }}
           tags: ${{ env.VERSION }}-${{ env.SHA4 }} ${{ env.VERSION }}
           registry: ${{ env.IMAGE_REGISTRY }}
+
+  # ---------------------------------------------------------------------------
+  # Chart: publishes the Helm chart as an OCI artifact to the same Quay.io org
+  # whenever images are published. Chart version comes from Chart.yaml (kept in
+  # sync with package.json by scripts/sync-chart-version.js), so the published
+  # artifact matches the version tag that plugin.yaml references.
+  # ---------------------------------------------------------------------------
+  chart:
+    needs: [gate, images]
+    if: >-
+      !cancelled() &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'push' && needs.gate.outputs.code == 'true')) &&
+      needs.images.result == 'success'
+    runs-on: ubuntu-latest
+    name: Publish Helm chart
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Login to Quay.io
+        uses: redhat-actions/podman-login@v1
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_TOKEN }}
+
+      - name: Package and push chart to OCI registry
+        env:
+          REGISTRY_HOST: quay.io
+          QUAY_USER: ${{ secrets.QUAY_USERNAME }}
+          QUAY_PASS: ${{ secrets.QUAY_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          helm registry login "$REGISTRY_HOST" -u "$QUAY_USER" -p "$QUAY_PASS"
+
+          chart_tgz=$(helm package chart/ | awk '{print $NF}')
+          helm push "$chart_tgz" "oci://${IMAGE_REGISTRY}"
+          rm -f "$chart_tgz"
