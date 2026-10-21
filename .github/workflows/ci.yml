@@ -248,6 +248,7 @@ jobs:
   images:
     needs: [gate, merge-reuse, test, test-bff, lint, lint-chart]
     if: >-
+      !cancelled() &&
       (github.event_name == 'workflow_dispatch' ||
        (github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.gate.outputs.code == 'true')) &&
       (needs.merge-reuse.result == 'success' || needs.merge-reuse.result == 'skipped') &&
