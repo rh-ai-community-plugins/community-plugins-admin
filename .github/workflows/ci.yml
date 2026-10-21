@@ -236,12 +236,20 @@ jobs:
           fi
 
   # ---------------------------------------------------------------------------
+  # Images: on push to dev with code changes (or manual dispatch), build
+  # and push both images after tests are green (or were legitimately reused).
+  # Publishing is dev-only: when dev is merged to main for a release, the
+  # artifacts are already published (main content == dev head), and re-pushing
+  # from main would add redundant <version>-<SHA4> tags and overwrite the
+  # plain version tags with a rebuild of identical content.
+  # Tag: <package.json version>-<first 4 chars of the commit SHA>, plus the
+  # plain version tag that plugin.yaml and the Helm chart reference.
+  # ---------------------------------------------------------------------------
   images:
     needs: [gate, merge-reuse, test, test-bff, lint, lint-chart]
     if: >-
-      !cancelled() &&
       (github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'push' && needs.gate.outputs.code == 'true')) &&
+       (github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.gate.outputs.code == 'true')) &&
       (needs.merge-reuse.result == 'success' || needs.merge-reuse.result == 'skipped') &&
       (needs.test.result == 'success' || needs.test.result == 'skipped') &&
       (needs.test-bff.result == 'success' || needs.test-bff.result == 'skipped') &&
@@ -307,7 +315,7 @@ jobs:
     if: >-
       !cancelled() &&
       (github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'push' && needs.gate.outputs.code == 'true')) &&
+       (github.event_name == 'push' && github.ref == 'refs/heads/dev' && needs.gate.outputs.code == 'true')) &&
       needs.images.result == 'success'
     runs-on: ubuntu-latest
     name: Publish Helm chart
