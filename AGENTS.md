@@ -195,7 +195,7 @@ Jest with `ts-jest` preset and `jsdom` environment (`jest.config.js`). `jest.set
 
 ### CI/CD Workflows
 
-- `.github/workflows/ci.yml` — Gated CI pipeline: a paths-filter job decides per PR/push what runs. Code changes → tests + lint (frontend + BFF); doc-only/plugin.yaml/chart-only changes → linting only. On push (PR merge or direct), tests are skipped when the merged PR's own CI run was green at its head SHA. After green tests on push with code changes, builds and pushes both images to Quay.io tagged `<package.json version>-<first 4 of SHA>` plus the plain version. Also lints the Helm chart and validates `plugin.yaml` syntax. Manually triggerable via `workflow_dispatch` (full pipeline).
+- `.github/workflows/ci.yml` — Gated CI pipeline: a paths-filter job decides per PR/push what runs. Code changes → tests + lint (frontend + BFF); doc-only/plugin.yaml/chart-only changes → linting only. On push (PR merge or direct), tests are skipped when the merged PR's own CI run was green at its head SHA. After green tests on push with code changes, builds and pushes both images to Quay.io tagged `<package.json version>-<first 4 of SHA>` plus the plain version, then packages and publishes the Helm chart as an OCI artifact to `oci://quay.io/rh-ai-community-plugins` (version from `chart/Chart.yaml`). Also lints the Helm chart and validates `plugin.yaml` syntax. Manually triggerable via `workflow_dispatch` (full pipeline).
 
 ## Documentation
 
