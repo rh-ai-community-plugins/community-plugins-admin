@@ -113,9 +113,9 @@ If the plugin needs its own backend service (e.g. for data aggregation, proxying
 - The dashboard proxies requests from `/{plugin}/api/*` to this service, forwarding the user's Bearer token
 - The Helm chart should include the BFF as an optional component (`bff.enabled: true` by default)
 
-#### Build and Push Workflow
+#### CI Pipeline (build and push)
 
-A CI workflow (e.g. `.github/workflows/build-push.yml`) that builds and pushes container images to the registry. This project includes one triggered via `workflow_dispatch`.
+A CI workflow (e.g. `.github/workflows/ci.yml`) that gates test execution by changed paths, and builds and pushes container images to the registry after tests pass, with tags derived from `package.json`'s version and the commit SHA. This project includes one that also triggers manually via `workflow_dispatch`.
 
 ### Summary Checklist
 
@@ -129,8 +129,7 @@ my-cool-plugin/
 │   └── templates/
 ├── src/rhoai/extensions.ts              # Extension declarations (required)
 ├── bff/Containerfile                    # BFF image build (optional)
-├── .github/workflows/ci.yml             # CI validation (recommended)
-├── .github/workflows/build-push.yml     # Image publish (recommended)
+├── .github/workflows/ci.yml             # CI validation + image publish
 └── Makefile                             # Build, validate, image, chart targets
 ```
 

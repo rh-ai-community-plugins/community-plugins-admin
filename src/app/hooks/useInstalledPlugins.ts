@@ -2,7 +2,9 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useInstalledPluginNames, scopeToKebab, extractServiceInfo } from '~/app/hooks/useInstalledPluginNames';
 import { useCatalog } from '~/app/hooks/useCatalog';
 import { useHelmReleasedPlugins } from '~/app/hooks/useHelmReleasedPlugins';
+import { mfKebab } from '~/app/utils/installState';
 import { InstalledPlugin, ModuleFederationEntry, PluginHealthStatus } from '~/app/types/installed';
+import { CatalogPlugin } from '~/app/types/catalog';
 
 function deriveHealthStatus(deployment: {
   status?: {
@@ -128,8 +130,18 @@ export function useInstalledPlugins() {
     return () => { cancelled = true; controller.abort(); };
   }, [namesLoading, entriesKey]);
 
-  const catalogByName = useMemo(
-    () => new Map(catalogPlugins.map((p) => [p.name, p])),
+  // Installed-page rows are keyed by kebab-cased MF names, but a plugin's
+  // registry name can drift from its MF scope (repo renames — e.g.
+  // gpu-booking → gpu-booking-plugin with MF scope gpuBooking). Index the
+  // catalog by both names so rows still join their metadata.
+  const catalogByName: Record<string, CatalogPlugin> = useMemo(
+    () =>
+      Object.fromEntries(
+        catalogPlugins.flatMap((p) => [
+          [p.name, p],
+          [mfKebab(p), p],
+        ]),
+      ),
     [catalogPlugins],
   );
 
@@ -147,7 +159,7 @@ export function useInstalledPlugins() {
         availableReplicas: health?.availableReplicas,
         desiredReplicas: health?.desiredReplicas,
         installedVersion: helmVersionMap.get(name),
-        catalogPlugin: catalogByName.get(name),
+        catalogPlugin: catalogByName[name],
       };
     });
   }, [namesLoading, entries, catalogByName, healthMap, helmVersionMap]);
